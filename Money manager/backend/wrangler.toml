@@ -1,0 +1,7 @@
+name = "mypocket"
+main = "src/index.js"
+compatibility_date = "2024-04-01"
+
+[vars]
+# TURSO_URL and TURSO_TOKEN will be provided here or via secrets.
+# JWT_SECRET = "your-secret-here"
