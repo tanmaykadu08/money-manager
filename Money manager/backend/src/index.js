@@ -7,7 +7,11 @@ import incomeRoutes from './routes/incomeRoutes.js';
 import expenseRoutes from './routes/expenseRoutes.js';
 import autopayRoutes from './routes/autopayRoutes.js';
 import settingsRoutes from './routes/settingsRoutes.js';
+<<<<<<< HEAD
 import { authMiddleware } from './auth.js';
+=======
+import aiRoutes from './routes/aiRoutes.js';
+>>>>>>> b1852b4647dd2e0eaad552145933e50dfad1fe1c
 
 const app = new Hono();
 
@@ -16,8 +20,7 @@ app.use('/*', cors({
   allowHeaders: ['Content-Type', 'Authorization'],
   allowMethods: ['POST', 'GET', 'OPTIONS', 'DELETE', 'PUT', 'PATCH'],
   exposeHeaders: ['Content-Length'],
-  maxAge: 600,
-  credentials: true,
+  maxAge: 600
 }));
 
 app.get('/api/health', (c) => c.json({ status: 'ok', timestamp: new Date().toISOString() }));
@@ -199,6 +202,7 @@ app.route('/api/income', incomeRoutes);
 app.route('/api/expenses', expenseRoutes);
 app.route('/api/autopay', autopayRoutes);
 app.route('/api/settings', settingsRoutes);
+app.route('/api/ai', aiRoutes);
 
 import goalRoutes from './routes/goalRoutes.js';
 app.route('/api/goals', goalRoutes);

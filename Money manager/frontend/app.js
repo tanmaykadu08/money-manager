@@ -2,7 +2,7 @@
     let txChartInstance = null;
     let spendChartInstance = null;
     // RESTORED: Backend Sync Mode variables
-    let API_URL = localStorage.getItem('mypocket_api_url') || window.location.origin;
+    let API_URL = 'http://127.0.0.1:8787'; // localStorage.getItem('mypocket_api_url') || window.location.origin;
     let token = localStorage.getItem('mypocket_token') || '';
     let currentUser = JSON.parse(localStorage.getItem('mypocket_user') || 'null');
     let currentMonth = '';
