@@ -263,12 +263,12 @@
     async function loadMonthData() {
       try {
         const [income, expenses, autopay, settings, summary, goals] = await Promise.all([
-          api('GET', `/api/income?month=${currentMonth}`),
-          api('GET', `/api/expenses?month=${currentMonth}`),
-          api('GET', '/api/autopay'),
-          api('GET', '/api/settings'),
-          api('GET', '/api/settings/summary'),
-          api('GET', '/api/goals')
+          api('GET', `/api/income?month=${currentMonth}`).catch(() => []),
+          api('GET', `/api/expenses?month=${currentMonth}`).catch(() => []),
+          api('GET', '/api/autopay').catch(() => []),
+          api('GET', '/api/settings').catch(() => ({})),
+          api('GET', '/api/settings/summary').catch(() => ({})),
+          api('GET', '/api/goals').catch(() => [])
         ]);
         cache = { income, expenses, autopay, settings, summary, goals };
         renderAll();
