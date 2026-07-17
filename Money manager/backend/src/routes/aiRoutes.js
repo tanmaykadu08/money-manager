@@ -103,4 +103,48 @@ Provide a JSON response with exactly this format:
   }
 });
 
+router.post('/chat', async (c) => {
+  try {
+    const { message, context } = await c.req.json();
+    const GEMINI_API_KEY = c.env.GEMINI_API_KEY;
+
+    if (!GEMINI_API_KEY) {
+      return c.json({ error: 'Gemini API key not configured on server.' }, 500);
+    }
+
+    const systemPrompt = `You are the MyPocket AI Financial Assistant. You are a helpful, encouraging, and expert financial advisor.
+Your goal is to answer the user's questions about their finances based on their current financial context.
+Here is the user's current financial context:
+- Total Income: ${context.totalIncome}
+- Total Expenses: ${context.totalExpenses}
+- Savings: ${context.savings} (Savings Rate: ${context.savePct.toFixed(1)}%)
+- Expense Categories: ${JSON.stringify(context.catTotals)}
+
+Keep your answers concise, practical, and directly addressing the user's query. Use markdown for formatting (e.g. **bold**, bullet points). Do NOT output raw JSON, output a conversational response.`;
+
+    const prompt = `${systemPrompt}\n\nUser Question: ${message}`;
+
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+      })
+    });
+
+    if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(`API error: ${response.status} ${errText}`);
+    }
+
+    const data = await response.json();
+    const resultText = data.candidates[0].content.parts[0].text;
+
+    return c.json({ text: resultText });
+  } catch (err) {
+    console.error('AI Chat Error:', err);
+    return c.json({ error: 'Failed to get a response from AI.' }, 500);
+  }
+});
+
 export default router;

@@ -435,3 +435,117 @@ document.addEventListener('DOMContentLoaded', () => {
   s.textContent = `@keyframes aiSpin { to { transform: rotate(360deg); } }`;
   document.head.appendChild(s);
 })();
+
+// ── AI Chatbot Implementation ──────────
+window.toggleAIDrawer = function() {
+  const drawer = document.getElementById('aiDrawer');
+  if (drawer.classList.contains('ai-drawer-open')) {
+    aiAssistant.close();
+  } else {
+    aiAssistant.open();
+  }
+};
+
+window.aiInputKeydown = function(event) {
+  if (event.key === 'Enter' && !event.shiftKey) {
+    event.preventDefault();
+    const inp = document.getElementById('aiInput');
+    if (inp.value.trim()) aiAssistant.sendMessage(inp.value);
+  }
+};
+
+window.aiAssistant = {
+  open() {
+    document.getElementById('aiDrawer').classList.add('ai-drawer-open');
+    document.getElementById('aiDrawerOverlay').classList.add('show');
+    document.getElementById('aiFab').classList.add('is-open');
+    
+    // Add initial greeting if empty
+    const msgContainer = document.getElementById('aiMessages');
+    if (msgContainer.children.length === 0) {
+      this.appendMessage('ai', 'Hi there! 👋 I am your MyPocket AI Assistant. You can ask me anything about your finances, and I will analyze your data to help you out!');
+    }
+    
+    // Focus input
+    setTimeout(() => document.getElementById('aiInput').focus(), 300);
+  },
+  
+  close() {
+    document.getElementById('aiDrawer').classList.remove('ai-drawer-open');
+    document.getElementById('aiDrawerOverlay').classList.remove('show');
+    document.getElementById('aiFab').classList.remove('is-open');
+  },
+  
+  async sendMessage(text) {
+    const inp = document.getElementById('aiInput');
+    inp.value = '';
+    inp.style.height = 'auto'; // reset height
+    
+    this.appendMessage('user', text);
+    const loadingId = this.appendLoading();
+    
+    try {
+      // Call the backend chat endpoint
+      const context = aiGetCurrentData();
+      const response = await api('POST', '/api/ai/chat', { message: text, context });
+      
+      this.removeLoading(loadingId);
+      
+      if (response && response.text) {
+        this.appendMessage('ai', this.parseMarkdown(response.text));
+      } else {
+        throw new Error('No response text');
+      }
+    } catch (err) {
+      this.removeLoading(loadingId);
+      this.appendMessage('ai', `<span style="color:#ef4444;">Sorry, I encountered an error. Please try again.</span>`);
+    }
+  },
+  
+  appendMessage(role, text) {
+    const container = document.getElementById('aiMessages');
+    const msgDiv = document.createElement('div');
+    
+    if (role === 'user') {
+      msgDiv.style.cssText = 'background:#f1f5f9; color:#0f172a; padding:12px 16px; border-radius:18px; border-bottom-right-radius:4px; max-width:85%; align-self:flex-end; font-size:14px; margin-bottom:12px; margin-left:auto; line-height:1.5;';
+      msgDiv.textContent = text;
+    } else {
+      msgDiv.style.cssText = 'background:linear-gradient(135deg, rgba(168,85,247,0.1), rgba(59,130,246,0.1)); color:#0f172a; padding:12px 16px; border-radius:18px; border-bottom-left-radius:4px; max-width:90%; align-self:flex-start; font-size:14px; margin-bottom:12px; line-height:1.5; border:1px solid rgba(168,85,247,0.2);';
+      msgDiv.innerHTML = text; // Allow parsed markdown
+    }
+    
+    container.appendChild(msgDiv);
+    container.scrollTop = container.scrollHeight;
+  },
+  
+  appendLoading() {
+    const container = document.getElementById('aiMessages');
+    const id = 'loading-' + Date.now();
+    const msgDiv = document.createElement('div');
+    msgDiv.id = id;
+    msgDiv.style.cssText = 'background:linear-gradient(135deg, rgba(168,85,247,0.1), rgba(59,130,246,0.1)); color:#64748b; padding:12px 16px; border-radius:18px; border-bottom-left-radius:4px; max-width:90%; align-self:flex-start; font-size:14px; margin-bottom:12px; display:flex; gap:6px; align-items:center; border:1px solid rgba(168,85,247,0.2);';
+    msgDiv.innerHTML = `<span style="width:6px;height:6px;background:#a855f7;border-radius:50%;animation:aiBreathingGlow 1s infinite alternate;"></span><span style="width:6px;height:6px;background:#3b82f6;border-radius:50%;animation:aiBreathingGlow 1s infinite alternate 0.3s;"></span><span style="width:6px;height:6px;background:#ec4899;border-radius:50%;animation:aiBreathingGlow 1s infinite alternate 0.6s;"></span>`;
+    container.appendChild(msgDiv);
+    container.scrollTop = container.scrollHeight;
+    return id;
+  },
+  
+  removeLoading(id) {
+    const el = document.getElementById(id);
+    if (el) el.remove();
+  },
+  
+  parseMarkdown(text) {
+    // Simple parser for basic markdown
+    let html = text
+      .replace(/\\*\\*(.*?)\\*\\*/g, '<b>$1</b>') // Bold
+      .replace(/\\*(.*?)\\*/g, '<i>$1</i>')       // Italic
+      .replace(/\\n/g, '<br>')                    // Newlines
+      .replace(/\- (.*?)(?:<br>|$)/g, '<li style="margin-left:20px;">$1</li>'); // Lists
+    
+    if (html.includes('<li>')) {
+      html = html.replace(/(<li.*?>.*<\/li>)/g, '<ul style="margin:8px 0;padding:0;list-style-type:disc;">$1</ul>');
+    }
+    return html;
+  }
+};
