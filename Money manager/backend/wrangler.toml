@@ -3,5 +3,11 @@ main = "src/index.js"
 compatibility_date = "2024-04-01"
 
 [vars]
-# TURSO_URL and TURSO_TOKEN will be provided here or via secrets.
-# JWT_SECRET = "your-secret-here"
+TURSO_URL = "libsql://money-manager-tanmaykadu08.aws-ap-south-1.turso.io"
+
+# ⚠️ SECURITY WARNING: Do NOT put real secrets in this file! 
+# Because this code goes to GitHub, anyone could steal your database or Gemini account.
+# Instead, add these securely in the Cloudflare Web Dashboard (Settings -> Variables and Secrets)
+# - TURSO_TOKEN
+# - GEMINI_API_KEY
+# - JWT_SECRET (This is just a random password you invent, e.g., "my-super-secret-key-123", used to keep your users' logins secure)
