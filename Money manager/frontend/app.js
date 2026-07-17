@@ -1134,14 +1134,7 @@
       }
     }
 
-    // ── Editing Transactions from Unified List ──r:bg-red-50 transition-colors opacity-0 group-hover:opacity-100" onclick="deleteTransaction(${t.id}, '${t.type}')" title="Delete">
-                  <span class="material-symbols-outlined text-[18px]">delete</span>
-                </button>
-              </td>
-            </tr>`;
-          }).join('')
-        : '<tr><td colspan="6" class="px-6 py-12 text-center text-slate-500 text-sm font-medium">No transactions found</td></tr>';
-    }
+    // ── Editing Transactions from Unified List ──
 
     async function deleteTransaction(id, type) {
       if (!confirm('Are you sure you want to delete this transaction?')) return;
