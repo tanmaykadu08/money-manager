@@ -21,9 +21,10 @@ router.get('/', async (c) => {
   return c.json(result.rows);
 });
 
-// POST /api/income
+// POST /api/income — single insert
 router.post('/', async (c) => {
-  const { month_key, label, amount, date, notes } = await c.req.json();
+  const body = await c.req.json();
+  const { month_key, label, amount, date, notes, source, import_id, original_description, external_reference } = body;
   if (!month_key || !label || !amount || !date)
     return c.json({ error: 'month_key, label, amount, date are required' }, 400);
   
@@ -31,12 +32,48 @@ router.post('/', async (c) => {
   const userId = c.get('userId');
 
   const result = await db.execute({
-    sql: 'INSERT INTO income (user_id, month_key, label, amount, date, notes) VALUES (?, ?, ?, ?, ?, ?)',
-    args: [userId, month_key, label, parseFloat(amount), date, notes || '']
+    sql: `INSERT INTO income (user_id, month_key, label, amount, date, notes, source, import_id, original_description, external_reference)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    args: [userId, month_key, label, parseFloat(amount), date, notes || '',
+           source || 'manual', import_id || null, original_description || null, external_reference || null]
   });
   
   const row = await db.execute({ sql: 'SELECT * FROM income WHERE id = ?', args: [result.lastInsertRowid] });
   return c.json(row.rows[0], 201);
+});
+
+// POST /api/income/bulk — batch insert for statement imports
+// Returns { inserted: N, errors: [] }
+router.post('/bulk', async (c) => {
+  const body = await c.req.json();
+  const { rows, import_id } = body;
+  if (!Array.isArray(rows) || rows.length === 0)
+    return c.json({ error: 'rows array is required' }, 400);
+
+  const db = getDb(c);
+  const userId = c.get('userId');
+
+  const inserted = [];
+  const errors = [];
+
+  for (const r of rows) {
+    try {
+      const { month_key, label, amount, date, notes, source, original_description, external_reference } = r;
+      if (!month_key || !label || !amount || !date) { errors.push({ row: r, reason: 'missing fields' }); continue; }
+      const res = await db.execute({
+        sql: `INSERT INTO income (user_id, month_key, label, amount, date, notes, source, import_id, original_description, external_reference)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        args: [userId, month_key, label, parseFloat(amount), date, notes || '',
+               source || 'bank_statement', import_id || null, original_description || null, external_reference || null]
+      });
+      const row = await db.execute({ sql: 'SELECT * FROM income WHERE id = ?', args: [res.lastInsertRowid] });
+      inserted.push(row.rows[0]);
+    } catch (e) {
+      errors.push({ row: r, reason: e.message });
+    }
+  }
+
+  return c.json({ inserted, errors, count: inserted.length }, 201);
 });
 
 // DELETE /api/income/:id
