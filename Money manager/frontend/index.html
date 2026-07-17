@@ -107,7 +107,7 @@
           <div class="bg-surface-container-lowest rounded-2xl shadow-xl shadow-slate-200/50 border border-outline-variant/10 p-8 md:p-10">
               
               <!-- Login Block -->
-              <div id="form-login">
+              <form id="form-login" onsubmit="event.preventDefault(); doLogin();">
                   <div class="mb-8">
                       <h2 class="font-headline font-bold text-2xl text-on-surface">Welcome back</h2>
                       <p class="text-on-surface-variant text-sm mt-1">Please enter your details to access your portfolio.</p>
@@ -136,7 +136,7 @@
                           </div>
                       </div>
                       <!-- Action Button -->
-                      <button class="w-full gradient-brand text-white font-headline font-bold py-4 rounded-lg shadow-lg hover:opacity-90 active:scale-[0.98] transition-all flex items-center justify-center gap-2 mt-2" id="login-btn" onclick="doLogin()">
+                      <button type="submit" class="w-full gradient-brand text-white font-headline font-bold py-4 rounded-lg shadow-lg hover:opacity-90 active:scale-[0.98] transition-all flex items-center justify-center gap-2 mt-2" id="login-btn">
                           Sign In
                           <span class="material-symbols-outlined text-[18px]">arrow_forward</span>
                       </button>
@@ -146,13 +146,13 @@
                   <div class="text-center mt-8 pt-6 border-t border-slate-100">
                       <p class="text-slate-500 text-sm">
                           Don't have an account yet? 
-                          <button class="font-bold text-primary hover:text-primary-container transition-colors ml-1" id="tab-register" onclick="switchTab('register')">Create an Account</button>
+                          <button type="button" class="font-bold text-primary hover:text-primary-container transition-colors ml-1" id="tab-register" onclick="switchTab('register')">Create an Account</button>
                       </p>
                   </div>
-              </div>
+              </form>
 
               <!-- Register Block (hidden initially) -->
-              <div id="form-register" style="display:none">
+              <form id="form-register" style="display:none" onsubmit="event.preventDefault(); doRegister();">
                   <div class="mb-8">
                       <h2 class="font-headline font-bold text-2xl text-on-surface">Join MyPocket</h2>
                       <p class="text-on-surface-variant text-sm mt-1">Start managing your wealth with precision.</p>
@@ -191,7 +191,7 @@
                           </div>
                       </div>
                       <!-- Action Button -->
-                      <button class="w-full gradient-brand text-white font-headline font-bold py-4 rounded-lg shadow-lg hover:opacity-90 active:scale-[0.98] transition-all flex items-center justify-center gap-2 mt-2" id="reg-btn" onclick="doRegister()">
+                      <button type="submit" class="w-full gradient-brand text-white font-headline font-bold py-4 rounded-lg shadow-lg hover:opacity-90 active:scale-[0.98] transition-all flex items-center justify-center gap-2 mt-2" id="reg-btn">
                           Create Account
                           <span class="material-symbols-outlined text-[18px]">person_add</span>
                       </button>
@@ -201,10 +201,10 @@
                   <div class="text-center mt-8 pt-6 border-t border-slate-100">
                       <p class="text-slate-500 text-sm">
                           Already have an account? 
-                          <button class="font-bold text-primary hover:text-primary-container transition-colors ml-1" id="tab-login" onclick="switchTab('login')">Sign In</button>
+                          <button type="button" class="font-bold text-primary hover:text-primary-container transition-colors ml-1" id="tab-login" onclick="switchTab('login')">Sign In</button>
                       </p>
                   </div>
-              </div>
+              </form>
           </div>
 
 
