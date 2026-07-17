@@ -151,7 +151,7 @@ function runAISearch() {
 }
 
 // ── AI MONTHLY OVERVIEW ───────────────────────────────────
-function generateAIOverview() {
+async function generateAIOverview() {
   const btn = document.getElementById('ai-overview-btn');
   const el  = document.getElementById('ai-overview-content');
   if (!btn || !el) return;
@@ -159,61 +159,34 @@ function generateAIOverview() {
   btn.disabled = true;
   btn.innerHTML = `<span class="material-symbols-outlined" style="font-size:16px;animation:aiSpin 1s linear infinite;display:inline-block;">refresh</span>&nbsp;Thinking...`;
 
-  setTimeout(() => {
-    const d = aiGetCurrentData();
-    const monthLabel = (+d.y && +d.m)
-      ? new Date(+d.y, +d.m - 1, 1).toLocaleString('en-IN', { month: 'long', year: 'numeric' })
-      : 'This Month';
+  const d = aiGetCurrentData();
+  const monthLabel = (+d.y && +d.m)
+    ? new Date(+d.y, +d.m - 1, 1).toLocaleString('en-IN', { month: 'long', year: 'numeric' })
+    : 'This Month';
 
-    // Financial grade
-    const grade      = d.savePct >= 30 ? 'S' : d.savePct >= 20 ? 'A' : d.savePct >= 10 ? 'B' : d.savePct >= 0 ? 'C' : 'D';
-    const gradeColor = { S: '#10b981', A: '#3b82f6', B: '#f59e0b', C: '#f97316', D: '#ef4444' }[grade];
+  try {
+    const aiData = await api('POST', '/api/ai/insights', { d, monthLabel });
+    
+    if (aiData.error) throw new Error(aiData.error);
 
-    // Narrative sentences
-    const sentences = [];
-    if (!d.totalIncome) {
-      sentences.push('No income has been recorded yet.');
-    } else {
-      sentences.push(`You earned ${aiFmt(d.totalIncome)} this month.`);
-      if (d.totalExpenses > 0) {
-        const pct = Math.round(d.totalExpenses / d.totalIncome * 100);
-        sentences.push(
-          `You spent ${aiFmt(d.totalExpenses)} (${pct}% of income) across ${d.expenses.length} transactions` +
-          (d.topCat?.[1] > 0 ? `, led by ${d.topCat[0]} (${aiFmt(d.topCat[1])}).` : '.')
-        );
-      }
-      if (d.totalAuto > 0) sentences.push(`Recurring payments total ${aiFmt(d.totalAuto)}.`);
-      sentences.push(
-        d.savings >= 0
-          ? `You saved ${aiFmt(d.savings)} (${Math.round(d.savePct)}%) — ${grade === 'S' || grade === 'A' ? 'excellent!' : grade === 'B' ? 'solid performance.' : 'room to improve.'}`
-          : `You went over budget by ${aiFmt(Math.abs(d.savings))}.`
-      );
-    }
-
-    // Insight bullets
-    const insights = [];
-    if (d.topCat?.[1] > 0) insights.push(`${AI_CAT_EMOJI[d.topCat[0]]} <b>${d.topCat[0].charAt(0).toUpperCase() + d.topCat[0].slice(1)}</b> is your top spend: ${aiFmt(d.topCat[1])}.`);
-    if (d.totalAuto > 0)   insights.push(`🔁 Auto payments: ${aiFmt(d.totalAuto)}/mo — verify all are still needed.`);
-    if (d.savePct < 10 && d.totalIncome > 0) insights.push(`⚠️ Savings below 10%. Cut ${d.topCat?.[0] || 'discretionary'} spending to hit 20%.`);
-    if (d.savePct >= 20)   insights.push(`🏆 ${Math.round(d.savePct)}% savings rate puts you ahead of average.`);
-    if (d.expenses.length > 20) insights.push(`📊 ${d.expenses.length} transactions — watch for small habitual leaks.`);
+    const gradeColor = { S: '#10b981', A: '#3b82f6', B: '#f59e0b', C: '#f97316', D: '#ef4444' }[aiData.grade] || '#3b82f6';
 
     el.innerHTML = `
       <div class="flex flex-wrap gap-6 items-start mb-6">
         <div class="text-center">
-          <div class="text-6xl font-extrabold font-headline leading-none" style="color:${gradeColor};">${grade}</div>
+          <div class="text-6xl font-extrabold font-headline leading-none" style="color:${gradeColor};">${aiData.grade}</div>
           <div class="text-xs text-slate-400 font-bold mt-2 uppercase tracking-widest">Finance Score</div>
         </div>
         <div class="flex-1 min-w-[200px]">
           <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">${monthLabel} Summary</p>
-          <p class="text-slate-700 text-sm leading-relaxed">${sentences.join(' ')}</p>
+          <p class="text-slate-700 text-sm leading-relaxed">${aiData.summary}</p>
         </div>
       </div>
-      ${insights.length ? `
+      ${aiData.insights && aiData.insights.length ? `
         <div class="border-t border-slate-100 pt-5">
           <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Key Insights</p>
           <div class="space-y-2">
-            ${insights.map(i => `<div class="text-sm text-slate-700 bg-slate-50 rounded-xl p-3">${i}</div>`).join('')}
+            ${aiData.insights.map(i => `<div class="text-sm text-slate-700 bg-slate-50 rounded-xl p-3">${i}</div>`).join('')}
           </div>
         </div>` : ''}
       <div class="mt-5 grid grid-cols-3 gap-4">
@@ -227,14 +200,16 @@ function generateAIOverview() {
             <div class="text-xs text-slate-400 font-bold mt-1">${s.label}</div>
           </div>`).join('')}
       </div>`;
+  } catch (err) {
+    el.innerHTML = `<div class="p-4 text-center text-sm text-red-500">Error generating insights: ${err.message}</div>`;
+  }
 
-    btn.disabled = false;
-    btn.innerHTML = `<span class="material-symbols-outlined" style="font-size:16px;">auto_awesome</span>&nbsp;Regenerate`;
-  }, 850);
+  btn.disabled = false;
+  btn.innerHTML = `<span class="material-symbols-outlined" style="font-size:16px;">auto_awesome</span>&nbsp;Regenerate`;
 }
 
 // ── AI BUDGET COACH ───────────────────────────────────────
-function renderAICoach() {
+async function renderAICoach() {
   const el = document.getElementById('ai-coach-content');
   if (!el) return;
 
@@ -244,47 +219,36 @@ function renderAICoach() {
     return;
   }
 
-  const tips = [];
-  if (d.savePct < 0)
-    tips.push({ icon: '🚨', type: 'danger', title: 'Over budget!', body: `You exceeded income by ${aiFmt(Math.abs(d.savings))}. Pause all non-essential spending now.` });
-  else if (d.savePct < 10)
-    tips.push({ icon: '⚠️', type: 'warn', title: 'Low savings rate', body: `Only ${Math.round(d.savePct)}% saved. Target 20%+. Reduce ${d.topCat?.[0] || 'discretionary'} spending.` });
-  else if (d.savePct >= 30)
-    tips.push({ icon: '🏆', type: 'good', title: 'Excellent savings!', body: `You're saving ${Math.round(d.savePct)}% — well above the recommended 20%. Keep it up!` });
-  else
-    tips.push({ icon: '✅', type: 'good', title: 'On track', body: `${Math.round(d.savePct)}% savings rate — within the healthy 10-30% range.` });
+  el.innerHTML = `<div class="py-8 text-center text-sm text-slate-400"><span class="material-symbols-outlined" style="font-size:16px;animation:aiSpin 1s linear infinite;display:inline-block;">refresh</span>&nbsp;Generating Coach Tips...</div>`;
 
-  if (d.totalIncome > 0) {
-    if ((d.catTotals.food || 0) > d.totalIncome * 0.25)
-      tips.push({ icon: '🍔', type: 'warn', title: 'High food spending', body: `Food is ${Math.round(d.catTotals.food / d.totalIncome * 100)}% of income. Meal-prepping can cut this 30-40%.` });
-    if ((d.catTotals.shopping || 0) > d.totalIncome * 0.15)
-      tips.push({ icon: '🛍️', type: 'warn', title: 'Shopping spike', body: `${aiFmt(d.catTotals.shopping)} on shopping. Try a 24-hour pause before any purchase.` });
-    if (d.totalAuto > 0) {
-      const ap = Math.round(d.totalAuto / d.totalIncome * 100);
-      tips.push(ap > 30
-        ? { icon: '🔁', type: 'warn', title: 'Heavy recurring costs', body: `${ap}% of income on auto payments. Review for unused subscriptions.` }
-        : { icon: '✅', type: 'good', title: 'Subscriptions balanced', body: `${ap}% on recurring costs — within a healthy range.` }
-      );
+  try {
+    const aiData = await api('POST', '/api/ai/insights', { d, monthLabel: d.m, feature: 'coach' });
+    if (aiData.error) throw new Error(aiData.error);
+    
+    const tips = aiData.tips || [];
+    
+    if (tips.length === 0) {
+      tips.push({ icon: '👍', type: 'good', title: 'Finances look healthy!', body: 'No major red flags. Keep the consistent tracking going!' });
     }
+
+    const typeStyle = { danger: 'border-red-200 bg-red-50', warn: 'border-amber-200 bg-amber-50', good: 'border-green-200 bg-green-50' };
+    el.innerHTML = `<div class="space-y-3">
+      ${tips.map(t => `
+        <div class="flex items-start gap-3 p-4 rounded-2xl border ${typeStyle[t.type] || typeStyle.good}">
+          <span class="text-xl flex-shrink-0">${t.icon || '💡'}</span>
+          <div>
+            <p class="font-bold text-sm text-slate-800">${t.title || 'Tip'}</p>
+            <p class="text-xs text-slate-600 mt-0.5 leading-relaxed">${t.body || ''}</p>
+          </div>
+        </div>`).join('')}
+    </div>`;
+  } catch (err) {
+    el.innerHTML = `<div class="p-4 text-center text-sm text-red-500">Error generating coach tips: ${err.message}</div>`;
   }
-
-  if (tips.length === 1) tips.push({ icon: '👍', type: 'good', title: 'Finances look healthy!', body: 'No major red flags. Keep the consistent tracking going!' });
-
-  const typeStyle = { danger: 'border-red-200 bg-red-50', warn: 'border-amber-200 bg-amber-50', good: 'border-green-200 bg-green-50' };
-  el.innerHTML = `<div class="space-y-3">
-    ${tips.map(t => `
-      <div class="flex items-start gap-3 p-4 rounded-2xl border ${typeStyle[t.type]}">
-        <span class="text-xl flex-shrink-0">${t.icon}</span>
-        <div>
-          <p class="font-bold text-sm text-slate-800">${t.title}</p>
-          <p class="text-xs text-slate-600 mt-0.5 leading-relaxed">${t.body}</p>
-        </div>
-      </div>`).join('')}
-  </div>`;
 }
 
 // ── AI SPENDING FORECAST ──────────────────────────────────
-function renderAIPrediction() {
+async function renderAIPrediction() {
   const el = document.getElementById('ai-prediction-content');
   if (!el) return;
 
@@ -301,100 +265,95 @@ function renderAIPrediction() {
     return;
   }
 
-  const daysElapsed  = Math.max(1, d.dayOfMonth);
-  const dailyBurn    = (d.totalExpenses + d.totalAuto) / daysElapsed;
-  const daysLeft     = Math.max(0, d.daysInMonth - daysElapsed);
-  const projectedExp = (d.totalExpenses + d.totalAuto) + dailyBurn * daysLeft;
-  const projectedSav = d.totalIncome - projectedExp;
-  const color        = projectedSav >= 0 ? '#10b981' : '#ef4444';
-  const statusLabel  = projectedSav >= 0 ? 'On Track ✅' : 'Over Budget Risk ⚠️';
+  el.innerHTML = `<div class="py-8 text-center text-sm text-slate-400"><span class="material-symbols-outlined" style="font-size:16px;animation:aiSpin 1s linear infinite;display:inline-block;">refresh</span>&nbsp;Calculating Forecast...</div>`;
 
-  const bars = [
-    { label: 'Spent so far',          val: d.totalExpenses + d.totalAuto, max: Math.max(d.totalIncome, 1), color: '#ef4444' },
-    { label: 'Projected total spend', val: Math.min(projectedExp, d.totalIncome * 1.5), max: Math.max(d.totalIncome * 1.5, 1), color: '#f59e0b' },
-    { label: 'Projected savings',     val: Math.max(projectedSav, 0), max: Math.max(d.totalIncome, 1), color: '#10b981' }
-  ];
+  try {
+    const aiData = await api('POST', '/api/ai/insights', { d, monthLabel: d.m, feature: 'forecast' });
+    if (aiData.error) throw new Error(aiData.error);
 
-  el.innerHTML = `
-    <div class="text-center mb-6">
-      <div class="text-3xl font-extrabold font-headline" style="color:${color};">${aiFmt(Math.round(projectedSav))}</div>
-      <div class="text-xs font-bold uppercase tracking-wider mt-1" style="color:${color};">${statusLabel}</div>
-      <div class="text-xs text-slate-400 mt-2">${daysLeft} days remaining · Daily burn: ${aiFmt(Math.round(dailyBurn))}</div>
-    </div>
-    <div class="space-y-4">
-      ${bars.map(b => `
-        <div>
-          <div class="flex justify-between text-xs text-slate-500 mb-1.5">
-            <span>${b.label}</span>
-            <span class="font-bold text-slate-700">${aiFmt(Math.round(b.val))}</span>
-          </div>
-          <div class="h-2 rounded-full bg-slate-100 overflow-hidden">
-            <div class="h-full rounded-full transition-all duration-700"
-              style="width:${Math.min(100, b.val / b.max * 100).toFixed(1)}%;background:${b.color};"></div>
-          </div>
-        </div>`).join('')}
-    </div>`;
+    const projectedSav = aiData.projectedSav || 0;
+    const projectedExp = aiData.projectedExp || 0;
+    const statusLabel  = aiData.statusLabel || (projectedSav >= 0 ? 'On Track ✅' : 'Over Budget Risk ⚠️');
+    
+    const daysElapsed  = Math.max(1, d.dayOfMonth);
+    const daysLeft     = Math.max(0, d.daysInMonth - daysElapsed);
+    const dailyBurn    = (d.totalExpenses + d.totalAuto) / daysElapsed;
+    const color        = projectedSav >= 0 ? '#10b981' : '#ef4444';
+
+    const bars = [
+      { label: 'Spent so far',          val: d.totalExpenses + d.totalAuto, max: Math.max(d.totalIncome, 1), color: '#ef4444' },
+      { label: 'Projected total spend', val: Math.min(projectedExp, d.totalIncome * 1.5), max: Math.max(d.totalIncome * 1.5, 1), color: '#f59e0b' },
+      { label: 'Projected savings',     val: Math.max(projectedSav, 0), max: Math.max(d.totalIncome, 1), color: '#10b981' }
+    ];
+
+    el.innerHTML = `
+      <div class="text-center mb-6">
+        <div class="text-3xl font-extrabold font-headline" style="color:${color};">${aiFmt(Math.round(projectedSav))}</div>
+        <div class="text-xs font-bold uppercase tracking-wider mt-1" style="color:${color};">${statusLabel}</div>
+        <div class="text-xs text-slate-400 mt-2">${daysLeft} days remaining · Daily burn: ${aiFmt(Math.round(dailyBurn))}</div>
+      </div>
+      <div class="space-y-4">
+        ${bars.map(b => `
+          <div>
+            <div class="flex justify-between text-xs text-slate-500 mb-1.5">
+              <span>${b.label}</span>
+              <span class="font-bold text-slate-700">${aiFmt(Math.round(b.val))}</span>
+            </div>
+            <div class="h-2 rounded-full bg-slate-100 overflow-hidden">
+              <div class="h-full rounded-full transition-all duration-700"
+                style="width:${Math.min(100, b.val / b.max * 100).toFixed(1)}%;background:${b.color};"></div>
+            </div>
+          </div>`).join('')}
+      </div>`;
+  } catch (err) {
+    el.innerHTML = `<div class="p-4 text-center text-sm text-red-500">Error generating forecast: ${err.message}</div>`;
+  }
 }
 
 // ── AI ANOMALY DETECTION ──────────────────────────────────
-function renderAIAnomalies() {
+async function renderAIAnomalies() {
   const el = document.getElementById('ai-anomaly-content');
   if (!el) return;
 
   const d = aiGetCurrentData();
-  const anomalies = [];
+  
+  el.innerHTML = `<div class="py-8 text-center text-sm text-slate-400"><span class="material-symbols-outlined" style="font-size:16px;animation:aiSpin 1s linear infinite;display:inline-block;">refresh</span>&nbsp;Hunting for Anomalies...</div>`;
 
-  // Single large transaction
-  const sorted = [...d.expenses].sort((a, b) => b.amount - a.amount);
-  if (sorted.length > 0) {
-    const top = sorted[0];
-    const avg = d.totalExpenses / Math.max(1, d.expenses.length);
-    if (top.amount > avg * 3) {
-      anomalies.push({ icon: '💸', title: `Unusually large: "${top.desc}"`, body: `${aiFmt(top.amount)} is ${Math.round(top.amount / avg)}× your average transaction (${aiFmt(Math.round(avg))}).` });
+  try {
+    const aiData = await api('POST', '/api/ai/insights', { d, monthLabel: d.m, feature: 'anomalies' });
+    if (aiData.error) throw new Error(aiData.error);
+    
+    const anomalies = aiData.anomalies || [];
+
+    if (!anomalies.length) {
+      el.innerHTML = `
+        <div class="flex items-center gap-3 p-4 bg-green-50 border border-green-200 rounded-2xl">
+          <span class="text-2xl">✅</span>
+          <div>
+            <p class="font-bold text-sm text-slate-800">No anomalies detected!</p>
+            <p class="text-xs text-slate-600 mt-0.5">Spending patterns look normal for this month. Keep it up!</p>
+          </div>
+        </div>`;
+      return;
     }
+
+    el.innerHTML = `<div class="space-y-3">
+      ${anomalies.map(a => `
+        <div class="flex items-start gap-3 p-4 rounded-2xl border border-amber-200 bg-amber-50">
+          <span class="text-xl flex-shrink-0">${a.icon || '⚠️'}</span>
+          <div>
+            <p class="font-bold text-sm text-slate-800">${a.title}</p>
+            <p class="text-xs text-slate-600 mt-0.5">${a.body}</p>
+          </div>
+        </div>`).join('')}
+    </div>`;
+  } catch (err) {
+    el.innerHTML = `<div class="p-4 text-center text-sm text-red-500">Error generating anomalies: ${err.message}</div>`;
   }
-
-  // Category dominance
-  for (const [cat, amt] of Object.entries(d.catTotals)) {
-    if (amt > 0 && d.totalExpenses > 500 && amt / d.totalExpenses > 0.60) {
-      anomalies.push({ icon: AI_CAT_EMOJI[cat] || '📦', title: `${cat.charAt(0).toUpperCase() + cat.slice(1)} dominates spending`, body: `${Math.round(amt / d.totalExpenses * 100)}% of all expenses go to ${cat}. Consider rebalancing.` });
-    }
-  }
-
-  // Near-limit alert
-  if (d.totalIncome > 0 && (d.totalExpenses + d.totalAuto) > d.totalIncome * 0.9)
-    anomalies.push({ icon: '⚡', title: 'Approaching income limit', body: `You've used ${Math.round((d.totalExpenses + d.totalAuto) / d.totalIncome * 100)}% of income. Very little buffer remains.` });
-
-  // High frequency
-  if (d.expenses.length > 30)
-    anomalies.push({ icon: '📈', title: 'High transaction count', body: `${d.expenses.length} expenses this month. Frequent small transactions can hide financial leaks.` });
-
-  if (!anomalies.length) {
-    el.innerHTML = `
-      <div class="flex items-center gap-3 p-4 bg-green-50 border border-green-200 rounded-2xl">
-        <span class="text-2xl">✅</span>
-        <div>
-          <p class="font-bold text-sm text-slate-800">No anomalies detected!</p>
-          <p class="text-xs text-slate-600 mt-0.5">Spending patterns look normal for this month. Keep it up!</p>
-        </div>
-      </div>`;
-    return;
-  }
-
-  el.innerHTML = `<div class="space-y-3">
-    ${anomalies.map(a => `
-      <div class="flex items-start gap-3 p-4 rounded-2xl border border-amber-200 bg-amber-50">
-        <span class="text-xl flex-shrink-0">${a.icon}</span>
-        <div>
-          <p class="font-bold text-sm text-slate-800">${a.title}</p>
-          <p class="text-xs text-slate-600 mt-0.5">${a.body}</p>
-        </div>
-      </div>`).join('')}
-  </div>`;
 }
 
 // ── AI SPENDING DNA ───────────────────────────────────────
-function renderAIDNA() {
+async function renderAIDNA() {
   const el = document.getElementById('ai-dna-content');
   if (!el) return;
 
@@ -406,43 +365,48 @@ function renderAIDNA() {
     return;
   }
 
-  const segments = [
-    ...Object.entries(d.catTotals).filter(([, v]) => v > 0).map(([cat, val]) => ({ cat, val })),
-    ...(d.totalAuto > 0 ? [{ cat: 'auto', val: d.totalAuto }] : [])
-  ].sort((a, b) => b.val - a.val);
+  el.innerHTML = `<div class="py-8 text-center text-sm text-slate-400"><span class="material-symbols-outlined" style="font-size:16px;animation:aiSpin 1s linear infinite;display:inline-block;">refresh</span>&nbsp;Profiling DNA...</div>`;
 
-  const personalities = {
-    food: 'The Foodie 🍔', transport: 'The Commuter 🚗', bills: 'The Subscriber 📱',
-    shopping: 'The Shopaholic 🛍️', health: 'The Health Buff 💪', other: 'The Minimalist ✨', auto: 'The Automator 🔁'
-  };
-  const personality = segments[0] ? (personalities[segments[0].cat] || 'The Spender 💳') : 'The Saver 🏦';
+  try {
+    const aiData = await api('POST', '/api/ai/insights', { d, monthLabel: d.m, feature: 'dna' });
+    if (aiData.error) throw new Error(aiData.error);
 
-  el.innerHTML = `
-    <div class="mb-5 text-center">
-      <span class="inline-block px-5 py-1.5 rounded-full text-sm font-bold text-white"
-        style="background:linear-gradient(135deg,#a855f7,#ec4899);">${personality}</span>
-    </div>
-    <div class="space-y-3">
-      ${segments.map(s => {
-        const pct = Math.round(s.val / total * 100);
-        const col = AI_CAT_COL[s.cat] || '#64748b';
-        return `
-          <div>
-            <div class="flex justify-between items-center mb-1.5">
-              <span class="text-sm font-semibold text-slate-700">
-                ${AI_CAT_EMOJI[s.cat] || '📦'} ${s.cat.charAt(0).toUpperCase() + s.cat.slice(1)}
-              </span>
-              <div class="flex items-center gap-2">
-                <span class="text-xs font-bold text-slate-500">${aiFmt(s.val)}</span>
-                <span class="text-xs font-extrabold px-2 py-0.5 rounded-full text-white" style="background:${col};">${pct}%</span>
+    const personality = aiData.personality || 'The Spender 💳';
+
+    const segments = [
+      ...Object.entries(d.catTotals).filter(([, v]) => v > 0).map(([cat, val]) => ({ cat, val })),
+      ...(d.totalAuto > 0 ? [{ cat: 'auto', val: d.totalAuto }] : [])
+    ].sort((a, b) => b.val - a.val);
+
+    el.innerHTML = `
+      <div class="mb-5 text-center">
+        <span class="inline-block px-5 py-1.5 rounded-full text-sm font-bold text-white"
+          style="background:linear-gradient(135deg,#a855f7,#ec4899);">${personality}</span>
+      </div>
+      <div class="space-y-3">
+        ${segments.map(s => {
+          const pct = Math.round(s.val / total * 100);
+          const col = AI_CAT_COL[s.cat] || '#64748b';
+          return `
+            <div>
+              <div class="flex justify-between items-center mb-1.5">
+                <span class="text-sm font-semibold text-slate-700">
+                  ${AI_CAT_EMOJI[s.cat] || '📦'} ${s.cat.charAt(0).toUpperCase() + s.cat.slice(1)}
+                </span>
+                <div class="flex items-center gap-2">
+                  <span class="text-xs font-bold text-slate-500">${aiFmt(s.val)}</span>
+                  <span class="text-xs font-extrabold px-2 py-0.5 rounded-full text-white" style="background:${col};">${pct}%</span>
+                </div>
               </div>
-            </div>
-            <div class="h-2.5 rounded-full bg-slate-100 overflow-hidden">
-              <div class="h-full rounded-full transition-all duration-700" style="width:${pct}%;background:${col};"></div>
-            </div>
-          </div>`;
-      }).join('')}
-    </div>`;
+              <div class="h-2.5 rounded-full bg-slate-100 overflow-hidden">
+                <div class="h-full rounded-full transition-all duration-700" style="width:${pct}%;background:${col};"></div>
+              </div>
+            </div>`;
+        }).join('')}
+      </div>`;
+  } catch (err) {
+    el.innerHTML = `<div class="p-4 text-center text-sm text-red-500">Error profiling DNA: ${err.message}</div>`;
+  }
 }
 
 // ── Auto-refresh AI panels whenever data reloads ──────────
