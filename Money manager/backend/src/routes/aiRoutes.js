@@ -97,10 +97,15 @@ Provide a JSON response with exactly this format:
     const aiData = JSON.parse(resultText);
 
     return c.json(aiData);
-  } catch (err) {
-    console.error('AI Insights Error:', err);
-    return c.json({ error: 'Failed to generate insights.' }, 500);
-  }
+  }catch (err) {
+  console.error("AI Insights Error:", err);
+
+  return c.json({
+    success: false,
+    message: err instanceof Error ? err.message : String(err),
+    stack: err instanceof Error ? err.stack : null
+  }, 500);
+}
 });
 
 router.post('/chat', async (c) => {
