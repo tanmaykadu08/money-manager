@@ -7,8 +7,10 @@ import incomeRoutes from './routes/incomeRoutes.js';
 import expenseRoutes from './routes/expenseRoutes.js';
 import autopayRoutes from './routes/autopayRoutes.js';
 import settingsRoutes from './routes/settingsRoutes.js';
+import aiRoutes from './routes/aiRoutes.js';
 import { authMiddleware } from './auth.js';
 import aiRoutes from './routes/aiRoutes.js';
+
 
 const app = new Hono();
 

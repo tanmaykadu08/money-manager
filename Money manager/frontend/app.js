@@ -482,7 +482,8 @@
       // Dashboard Cards with animations
       animateValue(document.getElementById('d-income'), 0, totalIncome, 800);
       animateValue(document.getElementById('d-expenses'), 0, totalExpenses + totalAuto, 800);
-      const totalSavings = cache.goals?.reduce((acc, g) => acc + g.total_saved, 0) || savings;
+      const goalsArray = Array.isArray(cache.goals) ? cache.goals : [];
+      const totalSavings = goalsArray.reduce((acc, g) => acc + (g.total_saved || 0), 0) || savings;
       animateValue(document.getElementById('d-savings'), 0, totalSavings, 800);
       animateValue(document.getElementById('d-balance'), 0, bankNow, 800);
 
@@ -760,7 +761,9 @@
 
     // ── Goals Rendering ──
     function getGoalStatus(g) {
-      if (g.total_saved >= g.target_amount) return { text: 'Completed', color: 'text-emerald-600', bg: 'bg-emerald-50', icon: 'check_circle' };
+      const total_saved = g.total_saved || 0;
+      const target_amount = g.target_amount || 0;
+      if (target_amount > 0 && total_saved >= target_amount) return { text: 'Completed', color: 'text-emerald-600', bg: 'bg-emerald-50', icon: 'check_circle' };
       if (!g.target_date) return { text: 'No deadline', color: 'text-slate-500', bg: 'bg-slate-50', icon: 'schedule' };
       
       const today = new Date();
@@ -768,43 +771,62 @@
       if (targetDate < today) return { text: 'Behind', color: 'text-rose-600', bg: 'bg-rose-50', icon: 'warning' };
       
       const monthsRemaining = Math.max(1, (targetDate.getFullYear() - today.getFullYear()) * 12 + targetDate.getMonth() - today.getMonth());
-      const remaining = Math.max(0, g.target_amount - g.total_saved);
+      const remaining = Math.max(0, target_amount - total_saved);
       const reqMonthly = remaining / monthsRemaining;
       
       return { text: 'On Track', color: 'text-indigo-600', bg: 'bg-indigo-50', icon: 'trending_up', reqMonthly, targetDateStr: targetDate.toLocaleString('default', { month: 'short', year: 'numeric' }) };
     }
 
     function renderGoals() {
-      const goals = cache.goals || [];
+      const goals = Array.isArray(cache.goals) ? cache.goals : [];
       const grid = document.getElementById('goals-grid');
       const emptyState = document.getElementById('goals-empty-state');
       if (!grid) return;
       
-      const activeGoals = goals.filter(g => g.total_saved < g.target_amount);
-      const totalSaved = goals.reduce((s, g) => s + g.total_saved, 0);
-      const totalTarget = activeGoals.reduce((s, g) => s + g.target_amount, 0);
+      const activeGoals = goals.filter(g => (g.total_saved || 0) < (g.target_amount || 0));
+      const totalSaved = goals.reduce((s, g) => s + (g.total_saved || 0), 0);
+      const totalTarget = activeGoals.reduce((s, g) => s + (g.target_amount || 0), 0);
       const monthContributed = goals.reduce((s, g) => s + (g.month_contributed || 0), 0);
       
-      document.getElementById('goal-summary-active').textContent = activeGoals.length;
-      document.getElementById('goal-summary-saved').textContent = fmt(totalSaved);
-      document.getElementById('goal-summary-target').textContent = fmt(totalTarget);
+      const elActive = document.getElementById('goal-summary-active');
+      if (elActive) elActive.textContent = activeGoals.length;
+      
+      const elSaved = document.getElementById('goal-summary-saved');
+      if (elSaved) elSaved.textContent = fmt(totalSaved);
+      
+      const elTarget = document.getElementById('goal-summary-target');
+      if (elTarget) elTarget.textContent = fmt(totalTarget);
       
       const monthEl = document.getElementById('goal-summary-monthly');
       if (monthEl) monthEl.textContent = fmt(monthContributed);
       
       if (goals.length === 0) {
-        grid.style.display = 'none';
-        emptyState.style.display = 'flex';
+        if (grid) {
+          grid.style.display = 'none';
+          grid.classList.add('hidden');
+        }
+        if (emptyState) {
+          emptyState.style.display = 'flex';
+          emptyState.classList.remove('hidden');
+        }
         return;
       }
       
-      grid.style.display = 'grid';
-      emptyState.style.display = 'none';
+      if (grid) {
+        grid.style.display = 'grid';
+        grid.classList.remove('hidden');
+      }
+      if (emptyState) {
+        emptyState.style.display = 'none';
+        emptyState.classList.add('hidden');
+      }
       
       grid.innerHTML = goals.map(g => {
+        const target_amount = g.target_amount || 0;
+        const total_saved = g.total_saved || 0;
         const status = getGoalStatus(g);
-        const pct = Math.min(100, Math.round((g.total_saved / g.target_amount) * 100)) || 0;
-        const isCompleted = g.total_saved >= g.target_amount;
+        const pct = target_amount > 0 ? Math.min(100, Math.round((total_saved / target_amount) * 100)) : 0;
+        const isCompleted = target_amount > 0 && total_saved >= target_amount;
         
         let iconStr = '🎯';
         if (g.category === 'Emergency Fund') iconStr = '🚨';
@@ -833,8 +855,8 @@
           <div class="flex items-center gap-3 mb-6">
             <div class="w-12 h-12 rounded-xl bg-slate-50 text-2xl flex items-center justify-center border border-slate-100">${iconStr}</div>
             <div>
-              <h4 class="font-bold text-slate-900">${g.name}</h4>
-              <p class="text-[11px] font-bold text-slate-500 uppercase tracking-widest">${g.category}</p>
+              <h4 class="font-bold text-slate-900">${g.name || 'Savings Goal'}</h4>
+              <p class="text-[11px] font-bold text-slate-500 uppercase tracking-widest">${g.category || 'Other'}</p>
             </div>
           </div>
           
@@ -848,8 +870,8 @@
             </div>
             <div class="flex-1">
               <p class="text-xs text-slate-500 mb-1">Saved</p>
-              <p class="text-xl font-extrabold font-headline ${isCompleted ? 'text-emerald-600' : 'text-slate-900'}">${fmt(g.total_saved)}</p>
-              <p class="text-xs text-slate-400 mt-1">of ${fmt(g.target_amount)}</p>
+              <p class="text-xl font-extrabold font-headline ${isCompleted ? 'text-emerald-600' : 'text-slate-900'}">${fmt(total_saved)}</p>
+              <p class="text-xs text-slate-400 mt-1">of ${fmt(target_amount)}</p>
             </div>
           </div>
           
@@ -876,8 +898,8 @@
       const list = document.getElementById('dash-goals-list');
       if (!list) return;
       
-      const goals = cache.goals || [];
-      const activeGoals = goals.filter(g => g.total_saved < g.target_amount).slice(0, 3);
+      const goals = Array.isArray(cache.goals) ? cache.goals : [];
+      const activeGoals = goals.filter(g => (g.total_saved || 0) < (g.target_amount || 0)).slice(0, 3);
       
       if (goals.length === 0) {
         list.innerHTML = `
@@ -891,7 +913,9 @@
       }
       
       list.innerHTML = activeGoals.map(g => {
-        const pct = Math.min(100, Math.round((g.total_saved / g.target_amount) * 100)) || 0;
+        const target_amount = g.target_amount || 0;
+        const total_saved = g.total_saved || 0;
+        const pct = target_amount > 0 ? Math.min(100, Math.round((total_saved / target_amount) * 100)) : 0;
         
         let iconStr = '🎯';
         if (g.category === 'Emergency Fund') iconStr = '🚨';
@@ -909,9 +933,9 @@
             <div class="flex justify-between items-center mb-2">
               <div class="flex items-center gap-3">
                 <span class="text-xl">${iconStr}</span>
-                <span class="font-bold text-sm text-slate-800">${g.name}</span>
+                <span class="font-bold text-sm text-slate-800">${g.name || 'Goal'}</span>
               </div>
-              <span class="text-xs font-bold text-slate-500">${fmt(g.total_saved)} / ${fmt(g.target_amount)}</span>
+              <span class="text-xs font-bold text-slate-500">${fmt(total_saved)} / ${fmt(target_amount)}</span>
             </div>
             <div class="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
               <div class="bg-indigo-500 h-1.5 rounded-full" style="width: ${pct}%"></div>
@@ -1257,6 +1281,13 @@
           const ddEmail = document.getElementById('profileDropdownEmail');
           if (ddUser)  ddUser.textContent  = displayName;
           if (ddEmail) ddEmail.textContent = currentUser.email || '';
+          
+          const sbName = document.getElementById('sidebarUserName');
+          const sbEmail = document.getElementById('sidebarUserEmail');
+          const sbAvatar = document.getElementById('sidebarAvatar');
+          if (sbName) sbName.textContent = displayName;
+          if (sbEmail) sbEmail.textContent = currentUser.email || '';
+          if (sbAvatar) sbAvatar.textContent = displayName.charAt(0).toUpperCase() || 'U';
 
           // Show AI FAB
           const fab = document.getElementById('aiFab');
