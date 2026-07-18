@@ -1457,14 +1457,14 @@ function _renderStep1(body, foot) {
          ondrop="_handleDropzoneDrop(event)">
       <span class="material-symbols-outlined" style="font-size:48px;color:#a855f7;margin-bottom:12px;display:block;">upload_file</span>
       <p style="font-size:15px;font-weight:700;color:#0f172a;margin-bottom:6px;">Drop your bank statement here</p>
-      <p style="font-size:13px;color:#64748b;">Supports <strong>CSV</strong>, <strong>XLS</strong>, <strong>XLSX</strong>, <strong>Images (PNG/JPG)</strong></p>
-      <p style="font-size:12px;color:#94a3b8;margin-top:8px;">Max 10 MB &bull; PDF: please export as CSV from your bank or upload an image</p>
+      <p style="font-size:13px;color:#64748b;">Supports <strong>CSV</strong>, <strong>XLS</strong>, <strong>XLSX</strong>, <strong>Images</strong>, <strong>PDF</strong></p>
+      <p style="font-size:12px;color:#94a3b8;margin-top:8px;">Max 10 MB &bull; Ensure your PDF is a readable bank statement</p>
       <div style="margin-top:20px;">
         <span style="display:inline-block;padding:9px 20px;background:linear-gradient(135deg,#a855f7,#3b82f6);color:#fff;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;">Choose File</span>
       </div>
     </div>
-    <input type="file" id="filePickerInput" accept=".csv,.xls,.xlsx,.png,.jpeg,.jpg,.webp" style="display:none;" onchange="_handleFileInputChange(event)">
-    <p style="font-size:12px;color:#94a3b8;margin-top:14px;text-align:center;">💡 Tip: You can also upload images of your receipts or statements.</p>
+    <input type="file" id="filePickerInput" accept=".csv,.xls,.xlsx,.png,.jpeg,.jpg,.webp,.pdf" style="display:none;" onchange="_handleFileInputChange(event)">
+    <p style="font-size:12px;color:#94a3b8;margin-top:14px;text-align:center;">💡 Tip: You can also upload images or PDFs of your receipts or statements.</p>
   `;
   if (foot) foot.innerHTML = `<button class="btn" style="border:1px solid rgba(15,23,42,0.12);color:#64748b;" onclick="closeUploadModal()">Cancel</button>`;
 }
@@ -1484,15 +1484,10 @@ function _handleFileInputChange(e) {
 async function _processFile(file) {
   if (file.size > 10 * 1024 * 1024) { alert('File too large. Maximum 10 MB allowed.'); return; }
   const name = file.name.toLowerCase();
-  if (name.endsWith('.pdf')) {
-    alert('PDF parsing is not supported directly.\n\nPlease export your bank statement as a CSV file or upload an image screenshot of your statement.');
-    return;
-  }
-
-  const isImage = name.endsWith('.png') || name.endsWith('.jpeg') || name.endsWith('.jpg') || name.endsWith('.webp');
+  const isAIParseable = name.endsWith('.png') || name.endsWith('.jpeg') || name.endsWith('.jpg') || name.endsWith('.webp') || name.endsWith('.pdf');
 
   _uploadState.filename = file.name;
-  _uploadState.fileType = isImage ? 'image' : (name.endsWith('.csv') ? 'csv' : 'xlsx');
+  _uploadState.fileType = isAIParseable ? 'image' : (name.endsWith('.csv') ? 'csv' : 'xlsx');
   _renderUploadStep(2);
 
   // Slight delay so the spinner renders

@@ -192,7 +192,7 @@ JSON Array format only. Do not include markdown formatting like \`\`\`json.`;
             { text: prompt },
             {
               inline_data: {
-                mime_type: file.type || 'image/jpeg',
+                mime_type: file.name && file.name.toLowerCase().endsWith('.pdf') ? 'application/pdf' : (file.type || 'image/jpeg'),
                 data: base64Data
               }
             }
