@@ -1307,7 +1307,7 @@
         alert('Failed to delete: ' + e.message);
       }
     }
-
+    // ── Editing Transactions from Unified List ──
     async function deleteTransaction(id, type) {
       if (!confirm('Are you sure you want to delete this transaction?')) return;
       try {
@@ -1382,6 +1382,56 @@
              }
          });
       }
+    }
+
+    const aiCategoryCache = new Map();
+    function normalizeCacheKey(desc) {
+      if (!desc) return '';
+      return desc.toLowerCase().trim().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ');
+    }
+    async function guessCategoryAIAsync(desc) {
+      if (!desc) return null;
+      const key = normalizeCacheKey(desc);
+      if (aiCategoryCache.has(key)) return aiCategoryCache.get(key);
+      
+      const localCat = guessCategoryAI(desc);
+      if (localCat) {
+         aiCategoryCache.set(key, localCat);
+         return localCat;
+      }
+      
+      try {
+        const res = await api('POST', '/api/ai/categorize', { description: desc });
+        const cat = res.category;
+        if (cat) aiCategoryCache.set(key, cat);
+        return cat === 'other' ? null : cat; 
+      } catch (e) {
+        console.warn('AI categorization failed:', e);
+        return null;
+      }
+    }
+
+    // Attach blur event for Manual Transactions
+    const expDescInputEl = document.getElementById('exp-desc');
+    if (expDescInputEl) {
+      expDescInputEl.addEventListener('blur', async (e) => {
+        const desc = e.target.value.trim();
+        if (!desc) return;
+        const catSelect = document.getElementById('exp-cat');
+        if (catSelect && catSelect.value === 'auto') {
+          const autoOpt = Array.from(catSelect.options).find(o => o.value === 'auto');
+          if (autoOpt) autoOpt.textContent = '✨ Classifying...';
+          
+          let cat = await guessCategoryAIAsync(desc);
+          if (!cat) cat = guessCategoryAI(desc);
+          
+          if (catSelect.value === 'auto') { // check if user changed it while waiting
+             const valid = Array.from(catSelect.options).some(o => o.value === cat);
+             catSelect.value = valid ? cat : 'other';
+          }
+          if (autoOpt) autoOpt.textContent = '✨ Auto Classify';
+        }
+      });
     }
 
     // ── Init ──
@@ -1690,6 +1740,28 @@ async function _processFile(file) {
 
     _uploadState.parsedRows = rows;
     _uploadState.reviewRows = _classifyAndCheck(rows);
+
+    // AI ENRICHMENT STEP FOR IMPORTS
+    try {
+      const uniqueDescs = [...new Set(_uploadState.reviewRows.filter(r => r.type === 'expense').map(r => r.desc))];
+      const unknownDescs = uniqueDescs.filter(d => !guessCategoryAI(d) && !aiCategoryCache.has(normalizeCacheKey(d)));
+      
+      const CONCURRENCY = 3;
+      for (let i = 0; i < unknownDescs.length; i += CONCURRENCY) {
+          const chunk = unknownDescs.slice(i, i + CONCURRENCY);
+          await Promise.all(chunk.map(desc => guessCategoryAIAsync(desc)));
+      }
+      
+      _uploadState.reviewRows.forEach(r => {
+          if (r.type === 'expense') {
+              const aiCat = aiCategoryCache.get(normalizeCacheKey(r.desc)) || guessCategoryAI(r.desc);
+              if (aiCat && r.category === 'other') r.category = aiCat;
+          }
+      });
+    } catch (enrichErr) {
+      console.warn('Import enrichment failed non-fatally', enrichErr);
+    }
+
     _renderUploadStep(3);
   } catch (e) {
     console.error('Parse error:', e);
