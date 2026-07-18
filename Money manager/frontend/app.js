@@ -2,7 +2,7 @@
     let txChartInstance = null;
     let spendChartInstance = null;
     // RESTORED: Backend Sync Mode variables
-    let API_URL = 'http://127.0.0.1:8787'; // localStorage.getItem('mypocket_api_url') || window.location.origin;
+    let API_URL = 'https://money-manager.tanmaykadu08.workers.dev'; // localStorage.getItem('mypocket_api_url') || window.location.origin;
     let token = localStorage.getItem('mypocket_token') || '';
     let currentUser = JSON.parse(localStorage.getItem('mypocket_user') || 'null');
     let currentMonth = '';
@@ -1225,7 +1225,7 @@
       const urlSection = document.getElementById('apiUrlSection');
       
       // Auto-connect to the Cloudflare Backend
-      API_URL = 'https://mypocket.kadutanmay-06.workers.dev';
+      API_URL = 'https://money-manager.tanmaykadu08.workers.dev';
       localStorage.setItem('mypocket_api_url', API_URL);
       
       if (urlSection) {
