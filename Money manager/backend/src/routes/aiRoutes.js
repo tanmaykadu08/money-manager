@@ -79,6 +79,8 @@ Provide a JSON response with exactly this format:
 }`;
     }
 
+    prompt += `\nCRITICAL RULE: Always format monetary values in Indian Rupees (₹) instead of US Dollars ($).`;
+
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -127,7 +129,8 @@ Here is the user's current financial context:
 - Savings: ${context.savings} (Savings Rate: ${context.savePct.toFixed(1)}%)
 - Expense Categories: ${JSON.stringify(context.catTotals)}
 
-Keep your answers concise, practical, and directly addressing the user's query. Use markdown for formatting (e.g. **bold**, bullet points). Do NOT output raw JSON, output a conversational response.`;
+Keep your answers concise, practical, and directly addressing the user's query. Use markdown for formatting (e.g. **bold**, bullet points). Do NOT output raw JSON, output a conversational response.
+CRITICAL RULE: Always format monetary values in Indian Rupees (₹) instead of US Dollars ($).`;
 
     const prompt = `${systemPrompt}\n\nUser Question: ${message}`;
 
