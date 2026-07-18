@@ -78,7 +78,7 @@ Provide a JSON response with exactly this format:
 }`;
     }
 
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`, {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -94,7 +94,8 @@ Provide a JSON response with exactly this format:
 
     const data = await response.json();
     const resultText = data.candidates[0].content.parts[0].text;
-    const aiData = JSON.parse(resultText);
+    const cleanText = resultText.replace(/```json/gi, '').replace(/```/g, '').trim();
+    const aiData = JSON.parse(cleanText);
 
     return c.json(aiData);
   }catch (err) {
@@ -129,7 +130,7 @@ Keep your answers concise, practical, and directly addressing the user's query. 
 
     const prompt = `${systemPrompt}\n\nUser Question: ${message}`;
 
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`, {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -149,6 +150,74 @@ Keep your answers concise, practical, and directly addressing the user's query. 
   } catch (err) {
     console.error('AI Chat Error:', err);
     return c.json({ error: 'Failed to get a response from AI.' }, 500);
+  }
+});
+
+router.post('/parse-statement', async (c) => {
+  try {
+    const GEMINI_API_KEY = c.env.GEMINI_API_KEY;
+    if (!GEMINI_API_KEY) {
+      return c.json({ error: 'Gemini API key not configured on server.' }, 500);
+    }
+
+    const body = await c.req.parseBody();
+    const file = body['file'];
+    
+    if (!file || !(file instanceof File)) {
+      return c.json({ error: 'No valid file uploaded.' }, 400);
+    }
+
+    const arrayBuffer = await file.arrayBuffer();
+    const base64Data = btoa(
+      new Uint8Array(arrayBuffer)
+        .reduce((data, byte) => data + String.fromCharCode(byte), '')
+    );
+
+    const prompt = `Extract all financial transactions from this document/image. 
+Return ONLY a valid JSON array. Each object should have:
+- "date": string (YYYY-MM-DD format if possible)
+- "description": string (the merchant or transaction detail)
+- "amount": number (positive for income, negative for expenses)
+- "type": "income" or "expense"
+- "category": string (e.g. food, transport, bills, shopping, health, other, salary)
+
+JSON Array format only. Do not include markdown formatting like \`\`\`json.`;
+
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{
+          parts: [
+            { text: prompt },
+            {
+              inline_data: {
+                mime_type: file.type || 'image/jpeg',
+                data: base64Data
+              }
+            }
+          ]
+        }],
+        generationConfig: { response_mime_type: "application/json" }
+      })
+    });
+
+    if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(`API error: ${response.status} ${errText}`);
+    }
+
+    const data = await response.json();
+    const resultText = data.candidates[0].content.parts[0].text;
+    
+    // Strip markdown if necessary
+    const cleanText = resultText.replace(/```json/g, '').replace(/```/g, '').trim();
+    const transactions = JSON.parse(cleanText);
+
+    return c.json({ transactions });
+  } catch (err) {
+    console.error('AI Parse Statement Error:', err);
+    return c.json({ error: 'Failed to parse statement with AI.', detail: err.message }, 500);
   }
 });
 

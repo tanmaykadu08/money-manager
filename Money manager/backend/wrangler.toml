@@ -10,4 +10,4 @@ TURSO_URL = "libsql://money-manager-tanmaykadu08.aws-ap-south-1.turso.io"
 # Instead, add these securely in the Cloudflare Web Dashboard (Settings -> Variables and Secrets)
 # - TURSO_TOKEN
 # - GEMINI_API_KEY
-# - JWT_SECRET (This is just a random password you invent, e.g., "my-super-secret-key-123", used to keep your users' logins secure)
+

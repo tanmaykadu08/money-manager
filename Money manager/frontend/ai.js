@@ -209,213 +209,95 @@ async function generateAIOverview() {
   btn.innerHTML = `<span class="material-symbols-outlined" style="font-size:16px;">auto_awesome</span>&nbsp;Regenerate`;
 }
 
-// ── AI BUDGET COACH ───────────────────────────────────────
-async function renderAICoach() {
-  const el = document.getElementById('ai-coach-content');
-  if (!el) return;
-
-  const d = aiGetCurrentData();
-  if (!d.totalIncome && !d.totalExpenses) {
-    el.innerHTML = `<p class="text-sm text-slate-400 text-center py-8">Add some transactions to unlock personalised coaching.</p>`;
-    return;
-  }
-
-  el.innerHTML = `<div class="py-8 text-center text-sm text-slate-400"><span class="material-symbols-outlined" style="font-size:16px;animation:aiSpin 1s linear infinite;display:inline-block;">refresh</span>&nbsp;Generating Coach Tips...</div>`;
-
-  try {
-    const aiData = await api('POST', '/api/ai/insights', { d, monthLabel: d.m, feature: 'coach' });
-    if (aiData.error) throw new Error(aiData.error);
-    
-    const tips = aiData.tips || [];
-    
-    if (tips.length === 0) {
-      tips.push({ icon: '👍', type: 'good', title: 'Finances look healthy!', body: 'No major red flags. Keep the consistent tracking going!' });
-    }
-
-    const typeStyle = { danger: 'border-red-200 bg-red-50', warn: 'border-amber-200 bg-amber-50', good: 'border-green-200 bg-green-50' };
-    el.innerHTML = `<div class="space-y-3">
-      ${tips.map(t => `
-        <div class="flex items-start gap-3 p-4 rounded-2xl border ${typeStyle[t.type] || typeStyle.good}">
-          <span class="text-xl flex-shrink-0">${t.icon || '💡'}</span>
-          <div>
-            <p class="font-bold text-sm text-slate-800">${t.title || 'Tip'}</p>
-            <p class="text-xs text-slate-600 mt-0.5 leading-relaxed">${t.body || ''}</p>
-          </div>
-        </div>`).join('')}
-    </div>`;
-  } catch (err) {
-    el.innerHTML = `<div class="p-4 text-center text-sm text-red-500">Error generating coach tips: ${err.message}</div>`;
-  }
-}
-
-// ── AI SPENDING FORECAST ──────────────────────────────────
-async function renderAIPrediction() {
-  const el = document.getElementById('ai-prediction-content');
-  if (!el) return;
-
-  const d = aiGetCurrentData();
-  const today = new Date();
-  const isCurrentMonth = today.getFullYear() == +d.y && today.getMonth() + 1 == +d.m;
-
-  if (!isCurrentMonth) {
-    el.innerHTML = `<p class="text-sm text-slate-400 text-center py-8">Forecast is available only for the current month.</p>`;
-    return;
-  }
-  if (!d.totalExpenses && !d.totalIncome) {
-    el.innerHTML = `<p class="text-sm text-slate-400 text-center py-8">Add transactions first to generate a forecast.</p>`;
-    return;
-  }
-
-  el.innerHTML = `<div class="py-8 text-center text-sm text-slate-400"><span class="material-symbols-outlined" style="font-size:16px;animation:aiSpin 1s linear infinite;display:inline-block;">refresh</span>&nbsp;Calculating Forecast...</div>`;
-
-  try {
-    const aiData = await api('POST', '/api/ai/insights', { d, monthLabel: d.m, feature: 'forecast' });
-    if (aiData.error) throw new Error(aiData.error);
-
-    const projectedSav = aiData.projectedSav || 0;
-    const projectedExp = aiData.projectedExp || 0;
-    const statusLabel  = aiData.statusLabel || (projectedSav >= 0 ? 'On Track ✅' : 'Over Budget Risk ⚠️');
-    
-    const daysElapsed  = Math.max(1, d.dayOfMonth);
-    const daysLeft     = Math.max(0, d.daysInMonth - daysElapsed);
-    const dailyBurn    = (d.totalExpenses + d.totalAuto) / daysElapsed;
-    const color        = projectedSav >= 0 ? '#10b981' : '#ef4444';
-
-    const bars = [
-      { label: 'Spent so far',          val: d.totalExpenses + d.totalAuto, max: Math.max(d.totalIncome, 1), color: '#ef4444' },
-      { label: 'Projected total spend', val: Math.min(projectedExp, d.totalIncome * 1.5), max: Math.max(d.totalIncome * 1.5, 1), color: '#f59e0b' },
-      { label: 'Projected savings',     val: Math.max(projectedSav, 0), max: Math.max(d.totalIncome, 1), color: '#10b981' }
-    ];
-
-    el.innerHTML = `
-      <div class="text-center mb-6">
-        <div class="text-3xl font-extrabold font-headline" style="color:${color};">${aiFmt(Math.round(projectedSav))}</div>
-        <div class="text-xs font-bold uppercase tracking-wider mt-1" style="color:${color};">${statusLabel}</div>
-        <div class="text-xs text-slate-400 mt-2">${daysLeft} days remaining · Daily burn: ${aiFmt(Math.round(dailyBurn))}</div>
-      </div>
-      <div class="space-y-4">
-        ${bars.map(b => `
-          <div>
-            <div class="flex justify-between text-xs text-slate-500 mb-1.5">
-              <span>${b.label}</span>
-              <span class="font-bold text-slate-700">${aiFmt(Math.round(b.val))}</span>
-            </div>
-            <div class="h-2 rounded-full bg-slate-100 overflow-hidden">
-              <div class="h-full rounded-full transition-all duration-700"
-                style="width:${Math.min(100, b.val / b.max * 100).toFixed(1)}%;background:${b.color};"></div>
-            </div>
-          </div>`).join('')}
-      </div>`;
-  } catch (err) {
-    el.innerHTML = `<div class="p-4 text-center text-sm text-red-500">Error generating forecast: ${err.message}</div>`;
-  }
-}
-
-// ── AI ANOMALY DETECTION ──────────────────────────────────
-async function renderAIAnomalies() {
-  const el = document.getElementById('ai-anomaly-content');
-  if (!el) return;
-
-  const d = aiGetCurrentData();
+// ── AI GEMINI CHAT INTERFACE ────────────────────────────────
+async function sendChatMessage() {
+  const inp = document.getElementById('ai-chat-input');
+  const text = (inp.value || '').trim();
+  if (!text) return;
   
-  el.innerHTML = `<div class="py-8 text-center text-sm text-slate-400"><span class="material-symbols-outlined" style="font-size:16px;animation:aiSpin 1s linear infinite;display:inline-block;">refresh</span>&nbsp;Hunting for Anomalies...</div>`;
-
+  inp.value = '';
+  
+  const history = document.getElementById('ai-chat-history');
+  
+  // Append User Message
+  const userMsg = document.createElement('div');
+  userMsg.className = "flex items-start gap-3 flex-row-reverse";
+  userMsg.innerHTML = `
+    <div class="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 bg-slate-200">
+      <span class="material-symbols-outlined text-slate-500 text-sm">person</span>
+    </div>
+    <div class="bg-purple-600 text-white rounded-2xl rounded-tr-none px-4 py-3 max-w-[85%]">
+      ${text}
+    </div>
+  `;
+  history.appendChild(userMsg);
+  history.scrollTop = history.scrollHeight;
+  
+  // Append Loading Indicator
+  const loadId = 'loading-' + Date.now();
+  const loadMsg = document.createElement('div');
+  loadMsg.id = loadId;
+  loadMsg.className = "flex items-start gap-3";
+  loadMsg.innerHTML = `
+    <div class="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style="background:linear-gradient(135deg,#a855f7,#3b82f6);">
+      <span class="material-symbols-outlined text-white text-sm">auto_awesome</span>
+    </div>
+    <div class="bg-slate-50 border border-slate-100 rounded-2xl rounded-tl-none px-4 py-3 flex gap-1 items-center">
+      <span class="w-1.5 h-1.5 bg-purple-400 rounded-full animate-bounce" style="animation-delay: 0s"></span>
+      <span class="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce" style="animation-delay: 0.15s"></span>
+      <span class="w-1.5 h-1.5 bg-pink-400 rounded-full animate-bounce" style="animation-delay: 0.3s"></span>
+    </div>
+  `;
+  history.appendChild(loadMsg);
+  history.scrollTop = history.scrollHeight;
+  
   try {
-    const aiData = await api('POST', '/api/ai/insights', { d, monthLabel: d.m, feature: 'anomalies' });
-    if (aiData.error) throw new Error(aiData.error);
+    const context = aiGetCurrentData();
+    const response = await api('POST', '/api/ai/chat', { message: text, context });
     
-    const anomalies = aiData.anomalies || [];
-
-    if (!anomalies.length) {
-      el.innerHTML = `
-        <div class="flex items-center gap-3 p-4 bg-green-50 border border-green-200 rounded-2xl">
-          <span class="text-2xl">✅</span>
-          <div>
-            <p class="font-bold text-sm text-slate-800">No anomalies detected!</p>
-            <p class="text-xs text-slate-600 mt-0.5">Spending patterns look normal for this month. Keep it up!</p>
-          </div>
-        </div>`;
-      return;
-    }
-
-    el.innerHTML = `<div class="space-y-3">
-      ${anomalies.map(a => `
-        <div class="flex items-start gap-3 p-4 rounded-2xl border border-amber-200 bg-amber-50">
-          <span class="text-xl flex-shrink-0">${a.icon || '⚠️'}</span>
-          <div>
-            <p class="font-bold text-sm text-slate-800">${a.title}</p>
-            <p class="text-xs text-slate-600 mt-0.5">${a.body}</p>
-          </div>
-        </div>`).join('')}
-    </div>`;
-  } catch (err) {
-    el.innerHTML = `<div class="p-4 text-center text-sm text-red-500">Error generating anomalies: ${err.message}</div>`;
-  }
-}
-
-// ── AI SPENDING DNA ───────────────────────────────────────
-async function renderAIDNA() {
-  const el = document.getElementById('ai-dna-content');
-  if (!el) return;
-
-  const d     = aiGetCurrentData();
-  const total = d.totalExpenses + d.totalAuto;
-
-  if (!total) {
-    el.innerHTML = `<p class="text-sm text-slate-400 text-center py-8">No spending data yet. Add expenses to see your spending DNA.</p>`;
-    return;
-  }
-
-  el.innerHTML = `<div class="py-8 text-center text-sm text-slate-400"><span class="material-symbols-outlined" style="font-size:16px;animation:aiSpin 1s linear infinite;display:inline-block;">refresh</span>&nbsp;Profiling DNA...</div>`;
-
-  try {
-    const aiData = await api('POST', '/api/ai/insights', { d, monthLabel: d.m, feature: 'dna' });
-    if (aiData.error) throw new Error(aiData.error);
-
-    const personality = aiData.personality || 'The Spender 💳';
-
-    const segments = [
-      ...Object.entries(d.catTotals).filter(([, v]) => v > 0).map(([cat, val]) => ({ cat, val })),
-      ...(d.totalAuto > 0 ? [{ cat: 'auto', val: d.totalAuto }] : [])
-    ].sort((a, b) => b.val - a.val);
-
-    el.innerHTML = `
-      <div class="mb-5 text-center">
-        <span class="inline-block px-5 py-1.5 rounded-full text-sm font-bold text-white"
-          style="background:linear-gradient(135deg,#a855f7,#ec4899);">${personality}</span>
+    document.getElementById(loadId).remove();
+    
+    // Append AI Message
+    const aiMsg = document.createElement('div');
+    aiMsg.className = "flex items-start gap-3";
+    
+    let htmlContent = response.text || "Sorry, I couldn't generate a response.";
+    // Simple markdown parsing
+    htmlContent = htmlContent
+      .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
+      .replace(/\*(.*?)\*/g, '<i>$1</i>')
+      .replace(/\n/g, '<br>');
+      
+    aiMsg.innerHTML = `
+      <div class="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style="background:linear-gradient(135deg,#a855f7,#3b82f6);">
+        <span class="material-symbols-outlined text-white text-sm">auto_awesome</span>
       </div>
-      <div class="space-y-3">
-        ${segments.map(s => {
-          const pct = Math.round(s.val / total * 100);
-          const col = AI_CAT_COL[s.cat] || '#64748b';
-          return `
-            <div>
-              <div class="flex justify-between items-center mb-1.5">
-                <span class="text-sm font-semibold text-slate-700">
-                  ${AI_CAT_EMOJI[s.cat] || '📦'} ${s.cat.charAt(0).toUpperCase() + s.cat.slice(1)}
-                </span>
-                <div class="flex items-center gap-2">
-                  <span class="text-xs font-bold text-slate-500">${aiFmt(s.val)}</span>
-                  <span class="text-xs font-extrabold px-2 py-0.5 rounded-full text-white" style="background:${col};">${pct}%</span>
-                </div>
-              </div>
-              <div class="h-2.5 rounded-full bg-slate-100 overflow-hidden">
-                <div class="h-full rounded-full transition-all duration-700" style="width:${pct}%;background:${col};"></div>
-              </div>
-            </div>`;
-        }).join('')}
-      </div>`;
+      <div class="bg-slate-50 border border-slate-100 rounded-2xl rounded-tl-none px-4 py-3 text-slate-700 max-w-[85%] leading-relaxed">
+        ${htmlContent}
+      </div>
+    `;
+    history.appendChild(aiMsg);
+    history.scrollTop = history.scrollHeight;
   } catch (err) {
-    el.innerHTML = `<div class="p-4 text-center text-sm text-red-500">Error profiling DNA: ${err.message}</div>`;
+    document.getElementById(loadId).remove();
+    const errorMsg = document.createElement('div');
+    errorMsg.className = "flex items-start gap-3";
+    errorMsg.innerHTML = `
+      <div class="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style="background:linear-gradient(135deg,#ef4444,#f59e0b);">
+        <span class="material-symbols-outlined text-white text-sm">error</span>
+      </div>
+      <div class="bg-red-50 border border-red-100 rounded-2xl rounded-tl-none px-4 py-3 text-red-600 max-w-[85%] text-sm">
+        Error generating response: ${err.message}
+      </div>
+    `;
+    history.appendChild(errorMsg);
+    history.scrollTop = history.scrollHeight;
   }
 }
 
 // ── Auto-refresh AI panels whenever data reloads ──────────
 function refreshAllAI() {
-  try { renderAICoach(); }      catch (e) { /* no-op */ }
-  try { renderAIPrediction(); } catch (e) { /* no-op */ }
-  try { renderAIAnomalies(); }  catch (e) { /* no-op */ }
-  try { renderAIDNA(); }        catch (e) { /* no-op */ }
+  // try { generateAIOverview(); } catch (e) { /* no-op */ }
 }
 
 // Monkey-patch the main renderAll once the DOM is ready
