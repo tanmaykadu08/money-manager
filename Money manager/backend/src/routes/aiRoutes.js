@@ -1,5 +1,4 @@
 import { Hono } from 'hono';
-<<<<<<< HEAD
 import { authMiddleware } from '../auth.js';
 
 const router = new Hono();
