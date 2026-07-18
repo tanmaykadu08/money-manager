@@ -9,6 +9,7 @@ import autopayRoutes from './routes/autopayRoutes.js';
 import settingsRoutes from './routes/settingsRoutes.js';
 import { authMiddleware } from './auth.js';
 
+
 const app = new Hono();
 
 app.use('/*', cors({
