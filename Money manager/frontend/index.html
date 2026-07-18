@@ -80,6 +80,20 @@
         }
   </script>
   <link rel="stylesheet" href="style.css" />
+  <style>
+    @media (max-width: 768px) {
+      #goalModal > div:nth-child(2) {
+        width: calc(100vw - 24px) !important;
+        max-height: 90vh !important;
+        overflow-y: auto !important;
+        padding: 24px !important;
+      }
+      #goalModal [style*="grid-template-columns"] {
+        grid-template-columns: 1fr !important;
+        gap: 12px !important;
+      }
+    }
+  </style>
 </head>
 
 <body>
@@ -876,7 +890,14 @@
       <input type="hidden" id="goal-id" value="" />
       
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
-        <div class="form-group"><label>Goal Name</label><input id="goal-name" placeholder="e.g. MacBook Pro, Trip to Bali" /></div>
+        <div class="form-group" style="position:relative;">
+          <label>Goal Name</label>
+          <input id="goal-name" autocomplete="off" placeholder="e.g. MacBook Pro, Trip to Bali" />
+          
+          <!-- Smart Goal Suggestions Dropdown -->
+          <div id="goal-suggestions-dropdown" class="hidden absolute top-full left-0 right-0 mt-1 bg-white rounded-xl shadow-xl border border-slate-100 max-h-48 overflow-y-auto z-50 flex-col">
+          </div>
+        </div>
         <div class="form-group"><label>Target Amount (₹)</label><input id="goal-target" type="number" placeholder="0" /></div>
       </div>
       

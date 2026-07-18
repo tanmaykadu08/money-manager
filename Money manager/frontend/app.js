@@ -826,15 +826,21 @@
         const isCompleted = target_amount > 0 && total_saved >= target_amount;
         
         let iconStr = '🎯';
-        if (g.category === 'Emergency Fund') iconStr = '🚨';
-        else if (g.category === 'Electronics') iconStr = '💻';
-        else if (g.category === 'Travel') iconStr = '✈️';
-        else if (g.category === 'Vehicle') iconStr = '🚗';
-        else if (g.category === 'Education') iconStr = '📚';
-        else if (g.category === 'Home') iconStr = '🏠';
-        else if (g.category === 'Wedding') iconStr = '💍';
-        else if (g.category === 'Investment') iconStr = '📈';
-        else if (g.category === 'Business') iconStr = '💼';
+        let displayCat = g.category;
+        
+        if (!displayCat || displayCat === 'Other') {
+            displayCat = window.detectGoalCategory(g.name) || 'Other';
+        }
+
+        if (displayCat === 'Emergency Fund') iconStr = '🚨';
+        else if (displayCat === 'Electronics') iconStr = '💻';
+        else if (displayCat === 'Travel') iconStr = '✈️';
+        else if (displayCat === 'Vehicle') iconStr = '🚗';
+        else if (displayCat === 'Education') iconStr = '📚';
+        else if (displayCat === 'Home') iconStr = '🏠';
+        else if (displayCat === 'Wedding') iconStr = '💍';
+        else if (displayCat === 'Investment') iconStr = '📈';
+        else if (displayCat === 'Business') iconStr = '💼';
         
         return `
         <div class="bg-white rounded-[24px] border border-outline-variant/10 shadow-sm p-6 relative flex flex-col fade-up">
@@ -946,12 +952,145 @@
       // We'll update monthly summary directly in the API or via a basic estimate.
     }
 
+    // ── Smart Goal Suggestions Logic ──
+    const goalSuggestionsDB = [
+      "MacBook Pro", "MacBook Air", "MacBook", "Mac Mini",
+      "iPhone", "iPhone 16", "iPhone 16 Pro",
+      "New Car", "Used Car", "Car Down Payment",
+      "Travel Fund", "International Trip", "Vacation", "Trip to Bali", "Trip to Goa",
+      "Emergency Fund", "Medical Emergency",
+      "Wedding Fund", "Marriage",
+      "Education Fund", "Higher Education", "College Fees", "Course",
+      "House", "Flat", "Apartment", "Home Down Payment",
+      "Stock Investment", "Mutual Fund",
+      "Startup Fund", "Business"
+    ];
+
+    const categoryKeywords = {
+      'Electronics': ['mac', 'macbook', 'laptop', 'iphone', 'phone', 'mobile', 'camera', 'ipad', 'tablet', 'computer', 'pc'],
+      'Travel': ['trip', 'travel', 'vacation', 'holiday', 'bali', 'goa', 'nepal', 'flight', 'tour'],
+      'Vehicle': ['car', 'bike', 'vehicle', 'scooter', 'motorcycle'],
+      'Education': ['college', 'education', 'course', 'fees', 'degree', 'study'],
+      'Home': ['house', 'home', 'flat', 'apartment'],
+      'Wedding': ['wedding', 'marriage'],
+      'Emergency Fund': ['emergency'],
+      'Investment': ['investment', 'stock', 'mutual fund', 'sip'],
+      'Business': ['business', 'startup', 'company']
+    };
+
+    let userManuallyChangedCategory = false;
+
+    window.detectGoalCategory = function(goalName) {
+      const normalized = String(goalName || '').toLowerCase().trim();
+      if (!normalized) return null;
+      
+      for (const [cat, keywords] of Object.entries(categoryKeywords)) {
+        if (keywords.some(keyword => normalized.includes(keyword))) {
+          return cat;
+        }
+      }
+      return null;
+    };
+
+    function setGoalCategory(categoryName) {
+      const select = document.getElementById('goal-category');
+      if (!select || !categoryName) return;
+
+      const option = Array.from(select.options).find(
+          opt => opt.value.toLowerCase() === categoryName.toLowerCase()
+      );
+
+      if (option) {
+          select.value = option.value;
+      }
+    }
+
+    function initSmartGoalSuggestions() {
+      const goalCatSelect = document.getElementById('goal-category');
+      if (goalCatSelect) {
+        goalCatSelect.addEventListener('change', (e) => {
+            if (e.isTrusted) {
+               userManuallyChangedCategory = true;
+            }
+        });
+      }
+
+      const goalNameInput = document.getElementById('goal-name');
+      if (goalNameInput) {
+        goalNameInput.addEventListener('input', function() {
+            handleGoalNameInput(this.value);
+        });
+      }
+
+      document.addEventListener('click', (e) => {
+        const dd = document.getElementById('goal-suggestions-dropdown');
+        const input = document.getElementById('goal-name');
+        if (dd && !dd.classList.contains('hidden')) {
+          if (e.target !== input && !dd.contains(e.target)) {
+            dd.classList.add('hidden');
+            dd.classList.remove('flex');
+          }
+        }
+      });
+    }
+
+    function handleGoalNameInput(val) {
+      const dropdown = document.getElementById('goal-suggestions-dropdown');
+      if (!dropdown) return;
+      
+      const matchedCategory = window.detectGoalCategory(val);
+      if (!userManuallyChangedCategory) {
+         if (matchedCategory) {
+            setGoalCategory(matchedCategory);
+         } else if (val.trim() === '') {
+            setGoalCategory('Other');
+         }
+      }
+      
+      const query = val.toLowerCase().trim();
+      if (query.length < 3) {
+        dropdown.classList.add('hidden');
+        dropdown.classList.remove('flex');
+        return;
+      }
+      
+      const matches = goalSuggestionsDB.filter(s => s.toLowerCase().includes(query)).slice(0, 5);
+      if (matches.length === 0) {
+        dropdown.classList.add('hidden');
+        dropdown.classList.remove('flex');
+        return;
+      }
+      
+      dropdown.classList.remove('hidden');
+      dropdown.classList.add('flex');
+      dropdown.innerHTML = matches.map(m => `
+        <div onclick="selectGoalSuggestion('${m.replace(/'/g, "\\'")}')" class="p-3 hover:bg-slate-50 cursor-pointer border-b border-slate-50 last:border-0 transition-colors text-left text-sm font-bold text-slate-800 z-50 relative">
+            ${m}
+        </div>
+      `).join('');
+    }
+
+    window.selectGoalSuggestion = function(val) {
+      const input = document.getElementById('goal-name');
+      if (input) input.value = val;
+      const dropdown = document.getElementById('goal-suggestions-dropdown');
+      if (dropdown) {
+        dropdown.classList.add('hidden');
+        dropdown.classList.remove('flex');
+      }
+      handleGoalNameInput(val);
+      const targetInput = document.getElementById('goal-target');
+      if (targetInput) targetInput.focus();
+    };
+
     // ── Savings Goals Helpers ──
-    function openGoalModal(id = null) {
+    window.openGoalModal = function(id = null) {
       const modal = document.getElementById('goalModal');
       const title = document.getElementById('goalModalTitle');
       if (!modal) return;
       
+      userManuallyChangedCategory = false; // Reset manual track flag for all modal opens
+
       if (id) {
         title.textContent = 'Edit Savings Goal';
         const goal = cache.goals.find(g => g.id === id);
@@ -961,7 +1100,7 @@
           document.getElementById('goal-target').value = goal.target_amount;
           document.getElementById('goal-saved').value = goal.initial_saved_amount;
           document.getElementById('goal-date').value = goal.target_date || '';
-          document.getElementById('goal-category').value = goal.category;
+          document.getElementById('goal-category').value = goal.category || 'Other';
           document.getElementById('goal-desc').value = goal.description || '';
           document.getElementById('goal-saved').disabled = true; // prevent changing initial after creation
         }
@@ -975,13 +1114,19 @@
         document.getElementById('goal-category').value = 'Other';
         document.getElementById('goal-desc').value = '';
         document.getElementById('goal-saved').disabled = false;
+        
+        const dropdown = document.getElementById('goal-suggestions-dropdown');
+        if (dropdown) {
+            dropdown.classList.add('hidden');
+            dropdown.classList.remove('flex');
+        }
       }
       
       modal.style.display = 'flex';
       setTimeout(() => modal.firstElementChild.nextElementSibling.style.transform = 'scale(1)', 10);
     }
     
-    function closeGoalModal() {
+    window.closeGoalModal = function() {
       const modal = document.getElementById('goalModal');
       if (modal) {
         modal.firstElementChild.nextElementSibling.style.transform = 'scale(0.95)';
@@ -1009,11 +1154,16 @@
         return;
       }
       
+      let finalCategory = category;
+      if ((!finalCategory || finalCategory === 'Other') && !userManuallyChangedCategory) {
+         finalCategory = window.detectGoalCategory(name) || 'Other';
+      }
+
       const payload = {
         name,
         target_amount: parseFloat(target),
         target_date: date || null,
-        category,
+        category: finalCategory,
         description: desc
       };
       
@@ -1158,15 +1308,6 @@
       }
     }
 
-    // ── Editing Transactions from Unified List ──r:bg-red-50 transition-colors opacity-0 group-hover:opacity-100" onclick="deleteTransaction(${t.id}, '${t.type}')" title="Delete">
-                  <span class="material-symbols-outlined text-[18px]">delete</span>
-                </button>
-              </td>
-            </tr>`;
-          }).join('')
-        : '<tr><td colspan="6" class="px-6 py-12 text-center text-slate-500 text-sm font-medium">No transactions found</td></tr>';
-    }
-
     async function deleteTransaction(id, type) {
       if (!confirm('Are you sure you want to delete this transaction?')) return;
       try {
@@ -1248,6 +1389,7 @@
       initMonthSelect();
       loadMonthData();
       initAICategorizer();
+      initSmartGoalSuggestions();
     }
 
     window.addEventListener('load', async () => {
