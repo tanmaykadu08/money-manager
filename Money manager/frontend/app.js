@@ -1514,8 +1514,8 @@ async function _processFile(file) {
         rawDate: t.date,
         date: _normalizeDate(t.date) || t.date, // Try to normalize
         desc: t.description,
-        debit: t.type === 'expense' ? Math.abs(t.amount) : 0,
-        credit: t.type === 'income' ? Math.abs(t.amount) : 0,
+        debit: String(t.type).toLowerCase() === 'expense' ? Math.abs(parseFloat(t.amount) || 0) : 0,
+        credit: String(t.type).toLowerCase() === 'income' ? Math.abs(parseFloat(t.amount) || 0) : 0,
         ref: ''
       }));
     } else if (_uploadState.fileType === 'csv') {
