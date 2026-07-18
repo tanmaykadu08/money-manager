@@ -1651,22 +1651,38 @@ function _csvSplitLine(line, delim) {
 }
 
 function _normalizeDate(raw) {
-  if (!raw) return null;
+  if (!raw) return getLocalDateStr(new Date());
   raw = raw.replace(/^"+|"+$/g, '').trim();
   // ISO YYYY-MM-DD
   if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+  
+  const currentYear = new Date().getFullYear();
+  
   // DD/MM/YYYY or DD-MM-YYYY
   const m1 = raw.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
   if (m1) return `${m1[3]}-${m1[2].padStart(2,'0')}-${m1[1].padStart(2,'0')}`;
+  
   // MM/DD/YY  
   const m2 = raw.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2})$/);
   if (m2) return `20${m2[3]}-${m2[1].padStart(2,'0')}-${m2[2].padStart(2,'0')}`;
-  // Free-form (e.g. "18 Jul 2025", "Jul 18, 2025")
+  
+  // DD/MM or DD-MM (assume current year)
+  const m3 = raw.match(/^(\d{1,2})[\/\-](\d{1,2})$/);
+  if (m3) return `${currentYear}-${m3[2].padStart(2,'0')}-${m3[1].padStart(2,'0')}`;
+
+  // Free-form (e.g. "18 Jul 2025", "Jul 18, 2025", "18 Jul")
   try {
-    const d = new Date(raw);
+    let parseStr = raw;
+    // If it looks like a day and month without year (e.g., "18 Jul"), append current year
+    if (/^\d{1,2}\s+[a-zA-Z]{3,}$/.test(raw) || /^[a-zA-Z]{3,}\s+\d{1,2}$/.test(raw)) {
+      parseStr += ` ${currentYear}`;
+    }
+    const d = new Date(parseStr);
     if (!isNaN(d.getTime())) return getLocalDateStr(d);
   } catch { /* */ }
-  return null;
+  
+  // Last resort fallback so it never fails with NaN-NaN
+  return getLocalDateStr(new Date());
 }
 
 // ── XLSX Parser (SheetJS loaded from CDN on demand) ──
@@ -1884,7 +1900,7 @@ async function _importSelected() {
       const d = new Date(/^\d{4}-\d{2}-\d{2}$/.test(r.date) ? r.date + 'T00:00:00' : r.date);
       return {
         month_key: getLocalMonthKey(d),
-        label: r.desc,
+        label: r.desc || 'Unknown',
         amount: r.amount,
         date: r.date,
         notes: r.ref ? `Ref: ${r.ref}` : '',
@@ -1899,7 +1915,7 @@ async function _importSelected() {
       const d = new Date(/^\d{4}-\d{2}-\d{2}$/.test(r.date) ? r.date + 'T00:00:00' : r.date);
       return {
         month_key: getLocalMonthKey(d),
-        desc: r.desc,
+        desc: r.desc || 'Unknown',
         amount: r.amount,
         date: r.date,
         category: r.category,
