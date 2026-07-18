@@ -7,6 +7,7 @@ import incomeRoutes from './routes/incomeRoutes.js';
 import expenseRoutes from './routes/expenseRoutes.js';
 import autopayRoutes from './routes/autopayRoutes.js';
 import settingsRoutes from './routes/settingsRoutes.js';
+import aiRoutes from './routes/aiRoutes.js';
 import { authMiddleware } from './auth.js';
 
 
@@ -200,6 +201,7 @@ app.route('/api/income', incomeRoutes);
 app.route('/api/expenses', expenseRoutes);
 app.route('/api/autopay', autopayRoutes);
 app.route('/api/settings', settingsRoutes);
+app.route('/api/ai', aiRoutes);
 
 import goalRoutes from './routes/goalRoutes.js';
 app.route('/api/goals', goalRoutes);
