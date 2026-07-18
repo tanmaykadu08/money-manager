@@ -1514,8 +1514,8 @@ async function _processFile(file) {
         rawDate: t.date,
         date: _normalizeDate(t.date) || t.date, // Try to normalize
         desc: t.description,
-        debit: String(t.type).toLowerCase() === 'expense' ? Math.abs(parseFloat(t.amount) || 0) : 0,
-        credit: String(t.type).toLowerCase() === 'income' ? Math.abs(parseFloat(t.amount) || 0) : 0,
+        debit: String(t.type).toLowerCase().trim() === 'expense' ? Math.abs(parseFloat(String(t.amount).replace(/[^\d.-]/g, '')) || 0) : 0,
+        credit: String(t.type).toLowerCase().trim() === 'income' ? Math.abs(parseFloat(String(t.amount).replace(/[^\d.-]/g, '')) || 0) : 0,
         ref: ''
       }));
     } else if (_uploadState.fileType === 'csv') {
@@ -1850,7 +1850,7 @@ async function _importSelected() {
 
     // Build payloads
     const incomeBulk = incomeSelected.map(r => {
-      const d = new Date(r.date + 'T00:00:00');
+      const d = new Date(/^\d{4}-\d{2}-\d{2}$/.test(r.date) ? r.date + 'T00:00:00' : r.date);
       return {
         month_key: getLocalMonthKey(d),
         label: r.desc,
@@ -1865,7 +1865,7 @@ async function _importSelected() {
     });
 
     const expenseBulk = expenseSelected.map(r => {
-      const d = new Date(r.date + 'T00:00:00');
+      const d = new Date(/^\d{4}-\d{2}-\d{2}$/.test(r.date) ? r.date + 'T00:00:00' : r.date);
       return {
         month_key: getLocalMonthKey(d),
         desc: r.desc,
@@ -1886,6 +1886,10 @@ async function _importSelected() {
     if (incomeBulk.length) {
       try {
         const res = await api('POST', '/api/income/bulk', { rows: incomeBulk, import_id: importId });
+        if (res.errors && res.errors.length > 0) {
+          console.error("Income bulk insert errors:", res.errors);
+          alert("Some income records failed to insert. See console for details.");
+        }
         incomeDone = res.count || 0;
         if (res.inserted) {
           const monthItems = res.inserted.filter(i => i.month_key === currentMonth);
@@ -1905,6 +1909,10 @@ async function _importSelected() {
     if (expenseBulk.length) {
       try {
         const res = await api('POST', '/api/expenses/bulk', { rows: expenseBulk, import_id: importId });
+        if (res.errors && res.errors.length > 0) {
+          console.error("Expense bulk insert errors:", res.errors);
+          alert("Some expense records failed to insert. See console for details.");
+        }
         expenseDone = res.count || 0;
         if (res.inserted) {
           const monthItems = res.inserted.filter(e => e.month_key === currentMonth);
