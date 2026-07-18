@@ -173,15 +173,19 @@ router.post('/parse-statement', async (c) => {
         .reduce((data, byte) => data + String.fromCharCode(byte), '')
     );
 
-    const prompt = `Extract all financial transactions from this document/image. 
-Return ONLY a valid JSON array. Each object should have:
-- "date": string (YYYY-MM-DD format if possible)
-- "description": string (the merchant or transaction detail)
-- "amount": number (positive for income, negative for expenses)
-- "type": "income" or "expense"
-- "category": string (e.g. food, transport, bills, shopping, health, other, salary)
+    const prompt = `Extract all financial transactions from this document/image.
+Return ONLY a valid JSON array of arrays. No markdown formatting.
+Each inner array must have exactly 4 elements in this exact order:
+1. date (string, YYYY-MM-DD format if possible)
+2. description (string)
+3. amount (number, positive absolute value)
+4. type (string, "income" or "expense")
 
-JSON Array format only. Do not include markdown formatting like \`\`\`json.`;
+Example output:
+[
+  ["2026-07-01", "Starbucks Coffee", 5.50, "expense"],
+  ["2026-07-05", "Salary", 2500.00, "income"]
+]`;
 
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
       method: "POST",
@@ -211,8 +215,15 @@ JSON Array format only. Do not include markdown formatting like \`\`\`json.`;
     const resultText = data.candidates[0].content.parts[0].text;
     
     // Strip markdown if necessary
-    const cleanText = resultText.replace(/```json/g, '').replace(/```/g, '').trim();
-    const transactions = JSON.parse(cleanText);
+    const cleanText = resultText.replace(/```json/gi, '').replace(/```/g, '').trim();
+    const rawArrays = JSON.parse(cleanText);
+    
+    const transactions = rawArrays.map(row => ({
+      date: row[0],
+      description: row[1],
+      amount: row[2],
+      type: row[3]
+    }));
 
     return c.json({ transactions });
   } catch (err) {
