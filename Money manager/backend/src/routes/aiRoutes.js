@@ -187,7 +187,7 @@ Example output:
   ["2026-07-05", "Salary", 2500.00, "income"]
 ]`;
 
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent?key=${GEMINI_API_KEY}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -214,8 +214,13 @@ Example output:
     const data = await response.json();
     const resultText = data.candidates[0].content.parts[0].text;
     
-    // Strip markdown if necessary
-    const cleanText = resultText.replace(/```json/gi, '').replace(/```/g, '').trim();
+    // Strip markdown if necessary and extract the JSON array part
+    let cleanText = resultText.replace(/```json/gi, '').replace(/```/g, '').trim();
+    const match = cleanText.match(/\[.*\]/s);
+    if (match) {
+      cleanText = match[0];
+    }
+    
     const rawArrays = JSON.parse(cleanText);
     
     const transactions = rawArrays.map(row => ({
