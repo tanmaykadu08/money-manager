@@ -8,6 +8,7 @@ import expenseRoutes from './routes/expenseRoutes.js';
 import autopayRoutes from './routes/autopayRoutes.js';
 import settingsRoutes from './routes/settingsRoutes.js';
 import aiRoutes from './routes/aiRoutes.js';
+import investmentRoutes from './routes/investmentRoutes.js';
 import { authMiddleware } from './auth.js';
 
 
@@ -119,7 +120,6 @@ app.post('/api/init-db', async (c) => {
       try { await db.execute(sql); } catch (_) { /* column already exists — ignore */ }
     }
 
-    // Savings Goals schema
     await db.execute(`CREATE TABLE IF NOT EXISTS goals (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER NOT NULL,
@@ -134,6 +134,18 @@ app.post('/api/init-db', async (c) => {
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now')),
       completed_at TEXT,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )`);
+
+    await db.execute(`CREATE TABLE IF NOT EXISTS investments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      symbol TEXT NOT NULL,
+      company_name TEXT NOT NULL,
+      quantity REAL NOT NULL,
+      average_buy_price REAL NOT NULL,
+      purchase_date TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     )`);
 
@@ -204,5 +216,6 @@ app.route('/api/ai', aiRoutes);
 
 import goalRoutes from './routes/goalRoutes.js';
 app.route('/api/goals', goalRoutes);
+app.route('/api/investments', investmentRoutes);
 
 export default app;

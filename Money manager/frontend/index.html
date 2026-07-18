@@ -80,6 +80,20 @@
         }
   </script>
   <link rel="stylesheet" href="style.css" />
+  <style>
+    @media (max-width: 768px) {
+      #goalModal > div:nth-child(2) {
+        width: calc(100vw - 24px) !important;
+        max-height: 90vh !important;
+        overflow-y: auto !important;
+        padding: 24px !important;
+      }
+      #goalModal [style*="grid-template-columns"] {
+        grid-template-columns: 1fr !important;
+        gap: 12px !important;
+      }
+    }
+  </style>
 </head>
 
 <body>
@@ -263,6 +277,10 @@
           <span class="material-symbols-outlined" style="font-size:22px;flex-shrink:0;color:var(--accent-purple);">auto_awesome</span>
           <span class="sidebar-text" style="white-space:nowrap;">AI Insights</span>
         </button>
+        <button class="nav-btn w-full flex items-center gap-3 font-semibold text-slate-500 hover:text-slate-800 transition-colors" onclick="navigate('investments')" id="nav-investments">
+          <span class="material-symbols-outlined" style="font-size:22px;flex-shrink:0;color:var(--accent-purple);">trending_up</span>
+          <span class="sidebar-text" style="white-space:nowrap;">Investments</span>
+        </button>
       </nav>
       
       <div style="margin-top:auto;display:flex;flex-direction:column;gap:12px;">
@@ -288,6 +306,7 @@
         <button class="mobile-nav-btn p-2 text-slate-500" onclick="navigate('savings')"><span class="material-symbols-outlined">track_changes</span></button>
         <button class="mobile-nav-btn p-2 text-slate-500" onclick="navigate('autopay')"><span class="material-symbols-outlined">currency_exchange</span></button>
         <button class="mobile-nav-btn p-2 text-slate-500" onclick="navigate('ai')" style="color:#a855f7;"><span class="material-symbols-outlined">auto_awesome</span></button>
+        <button class="mobile-nav-btn p-2 text-slate-500" onclick="navigate('investments')" style="color:#a855f7;"><span class="material-symbols-outlined">trending_up</span></button>
     </div>
 
     <!-- Main Content Shell -->
@@ -746,11 +765,270 @@
           </div>
         </div>
       </div>
+
+      <!-- Investments Section -->
+      <div class="section" id="sec-investments">
+        <section class="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-6 fade-up">
+          <div>
+            <h1 class="font-headline font-bold text-4xl text-slate-900 tracking-tight mb-2">Investment Intelligence</h1>
+            <p class="text-slate-500 font-medium">Research stocks with AI-powered market intelligence.</p>
+          </div>
+        </section>
+
+        <!-- Tabs -->
+        <div class="flex gap-6 border-b border-slate-200 mb-8 fade-up delay-100">
+          <button id="tab-portfolio" onclick="switchInvTab('portfolio')" class="pb-3 text-lg font-bold border-b-2 border-accent-purple text-accent-purple transition-colors">My Portfolio</button>
+          <button id="tab-analysis" onclick="switchInvTab('analysis')" class="pb-3 text-lg font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-800 transition-colors">AI Stock Analysis</button>
+        </div>
+
+        <!-- Portfolio Tab -->
+        <div id="inv-tab-portfolio" class="fade-up flex flex-col gap-8">
+          <!-- Summary cards -->
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
+            <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+              <p class="text-sm font-semibold text-slate-500 mb-1">Total Invested</p>
+              <h3 id="port-total-invested" class="text-2xl font-black text-slate-900">₹0.00</h3>
+            </div>
+            <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+              <p class="text-sm font-semibold text-slate-500 mb-1">Current Value</p>
+              <h3 id="port-current-value" class="text-2xl font-black text-slate-900">₹0.00</h3>
+            </div>
+            <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+              <p class="text-sm font-semibold text-slate-500 mb-1">Total Profit / Loss</p>
+              <h3 id="port-total-pl" class="text-2xl font-black text-slate-900">₹0.00</h3>
+            </div>
+            <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+              <p class="text-sm font-semibold text-slate-500 mb-1">Today's Change</p>
+              <h3 id="port-today-change" class="text-2xl font-black text-slate-900">₹0.00</h3>
+            </div>
+          </div>
+
+          <div class="bg-white rounded-[2rem] p-8 shadow-sm border border-slate-100">
+            <div class="flex justify-between items-center mb-6">
+              <h3 class="font-headline font-bold text-2xl text-slate-900">My Holdings</h3>
+              <button onclick="openAddInvestmentModal()" class="btn btn-primary px-6 rounded-xl font-bold flex items-center gap-2" style="background:var(--accent-purple);border-color:var(--accent-purple);color:white;box-shadow:0 8px 16px -4px rgba(168,85,247,0.4);">
+                <span class="material-symbols-outlined">add</span> Add Investment
+              </button>
+            </div>
+            
+            <div class="overflow-x-auto">
+              <table class="w-full text-left border-collapse">
+                <thead>
+                  <tr class="text-xs font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100">
+                    <th class="pb-3 pr-4">Company</th>
+                    <th class="pb-3 px-4">Qty</th>
+                    <th class="pb-3 px-4">Avg Buy Price</th>
+                    <th class="pb-3 px-4">Current Price</th>
+                    <th class="pb-3 px-4">Invested Value</th>
+                    <th class="pb-3 px-4">Current Value</th>
+                    <th class="pb-3 pl-4 text-right">Profit/Loss</th>
+                  </tr>
+                </thead>
+                <tbody id="portfolio-table-body">
+                  <tr>
+                    <td colspan="7" class="py-10 text-center text-slate-400 font-semibold">Loading portfolio...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Analysis Tab -->
+        <div id="inv-tab-analysis" class="hidden fade-up flex-col gap-0">
+        <!-- Search Bar -->
+        <section class="mb-10 fade-up delay-100">
+          <div class="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 flex flex-col gap-4">
+            <div class="flex gap-4">
+              <input type="text" id="inv-search-input" placeholder="Search a stock or company..." class="w-full px-6 py-4 bg-slate-50 rounded-2xl border-none text-slate-800 font-semibold focus:ring-2 focus:ring-accent-purple outline-none transition-all">
+              <button onclick="analyzeStock()" class="btn btn-primary px-8 rounded-2xl font-bold flex items-center gap-2" style="background:var(--accent-purple);border-color:var(--accent-purple);color:white;box-shadow:0 8px 16px -4px rgba(168,85,247,0.4);">
+                <span class="material-symbols-outlined">analytics</span> Analyze
+              </button>
+            </div>
+            <div class="flex flex-wrap gap-2 items-center">
+              <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider mr-2">Examples:</span>
+              <button onclick="setSearch('RELIANCE')" class="text-xs font-bold text-slate-600 bg-slate-100 px-3 py-1.5 rounded-full hover:bg-slate-200 transition-colors">RELIANCE</button>
+              <button onclick="setSearch('TCS')" class="text-xs font-bold text-slate-600 bg-slate-100 px-3 py-1.5 rounded-full hover:bg-slate-200 transition-colors">TCS</button>
+              <button onclick="setSearch('INFY')" class="text-xs font-bold text-slate-600 bg-slate-100 px-3 py-1.5 rounded-full hover:bg-slate-200 transition-colors">INFY</button>
+              <button onclick="setSearch('HDFCBANK')" class="text-xs font-bold text-slate-600 bg-slate-100 px-3 py-1.5 rounded-full hover:bg-slate-200 transition-colors">HDFCBANK</button>
+              <button onclick="setSearch('AAPL')" class="text-xs font-bold text-slate-600 bg-slate-100 px-3 py-1.5 rounded-full hover:bg-slate-200 transition-colors">AAPL</button>
+              <button onclick="setSearch('TSLA')" class="text-xs font-bold text-slate-600 bg-slate-100 px-3 py-1.5 rounded-full hover:bg-slate-200 transition-colors">TSLA</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- Loading State -->
+        <div id="inv-loading" class="hidden flex-col items-center justify-center py-20">
+          <div class="w-12 h-12 border-4 border-slate-200 border-t-accent-purple rounded-full animate-spin mb-4"></div>
+          <p class="text-slate-500 font-semibold animate-pulse">AI is analyzing market data...</p>
+          <p id="inv-error" class="hidden text-rose-500 font-semibold mt-4 text-center max-w-md"></p>
+        </div>
+
+        <!-- Dashboard Content (hidden by default) -->
+        <div id="inv-dashboard" class="hidden flex-col gap-8 fade-up">
+          
+          <!-- Stock Header & Chart -->
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div class="lg:col-span-1 flex flex-col gap-6">
+              <div class="bg-white rounded-[2rem] p-8 shadow-sm border border-slate-100">
+                <p id="inv-symbol" class="text-sm font-bold text-accent-purple mb-1">SYMBOL</p>
+                <h2 id="inv-name" class="font-headline font-black text-3xl text-slate-900 mb-6 truncate" title="Company Name">Company Name</h2>
+                <div class="mb-2">
+                  <span id="inv-price" class="font-headline font-bold text-5xl text-slate-900">₹0.00</span>
+                </div>
+                <div class="flex items-center gap-2 font-semibold text-lg">
+                  <span id="inv-change" class="text-emerald-500">+₹0.00</span>
+                  <span id="inv-change-pct" class="text-emerald-500 bg-emerald-50 px-2 py-1 rounded-lg">+0.00%</span>
+                </div>
+              </div>
+              
+              <div class="bg-gradient-to-br from-slate-900 to-slate-800 rounded-[2rem] p-8 shadow-lg text-white">
+                <div class="flex items-center gap-3 mb-4">
+                  <span class="material-symbols-outlined text-accent-purple text-3xl">psychology</span>
+                  <h3 class="font-headline font-bold text-xl">AI Recommendation</h3>
+                </div>
+                <div id="inv-rec-badge" class="inline-block px-4 py-2 rounded-xl text-xl font-black tracking-widest mb-4 bg-white/20">HOLD</div>
+                <p id="inv-rec-reason" class="text-slate-300 text-sm leading-relaxed mb-6">Awaiting analysis...</p>
+                <div class="flex justify-between items-center text-xs font-bold text-slate-400 uppercase tracking-wider">
+                  <span>Risk: <span id="inv-risk" class="text-white">Medium</span></span>
+                  <span>Confidence: <span id="inv-conf" class="text-white">--%</span></span>
+                </div>
+              </div>
+            </div>
+
+            <div class="lg:col-span-2 bg-white rounded-[2rem] p-8 shadow-sm border border-slate-100 flex flex-col">
+              <div class="flex justify-between items-center mb-6">
+                <h3 class="font-headline font-bold text-xl text-slate-900">Price Action</h3>
+                <div class="flex bg-slate-100 rounded-xl p-1">
+                  <button class="inv-time-btn px-4 py-1.5 rounded-lg text-sm font-bold text-slate-500 hover:text-slate-800 transition-colors">1D</button>
+                  <button class="inv-time-btn px-4 py-1.5 rounded-lg text-sm font-bold text-slate-500 hover:text-slate-800 transition-colors">1W</button>
+                  <button class="inv-time-btn px-4 py-1.5 rounded-lg text-sm font-bold bg-white text-slate-900 shadow-sm transition-all active">1M</button>
+                  <button class="inv-time-btn px-4 py-1.5 rounded-lg text-sm font-bold text-slate-500 hover:text-slate-800 transition-colors">3M</button>
+                  <button class="inv-time-btn px-4 py-1.5 rounded-lg text-sm font-bold text-slate-500 hover:text-slate-800 transition-colors">1Y</button>
+                </div>
+              </div>
+              <div class="flex-grow w-full relative" style="min-height: 300px;">
+                <canvas id="investmentsChart"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <!-- AI Analysis Breakdown -->
+          <div class="bg-white rounded-[2rem] p-8 shadow-sm border border-slate-100">
+            <div class="flex items-center gap-3 mb-8">
+              <div class="w-10 h-10 rounded-xl bg-accent-purple/10 flex items-center justify-center text-accent-purple">
+                <span class="material-symbols-outlined">query_stats</span>
+              </div>
+              <h3 class="font-headline font-bold text-2xl text-slate-900">AI Market Analysis</h3>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+              <div>
+                <h4 class="font-bold text-slate-800 mb-2 flex items-center gap-2"><span class="material-symbols-outlined text-sm text-slate-400">subject</span> Market Summary</h4>
+                <p id="inv-summary" class="text-slate-600 text-sm leading-relaxed">...</p>
+              </div>
+              <div>
+                <h4 class="font-bold text-slate-800 mb-2 flex items-center gap-2"><span class="material-symbols-outlined text-sm text-slate-400">trending_up</span> Trend Analysis</h4>
+                <p id="inv-trend" class="text-slate-600 text-sm leading-relaxed">...</p>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+              <div class="bg-emerald-50 rounded-2xl p-5 border border-emerald-100">
+                <h4 class="font-bold text-emerald-800 mb-3 flex items-center gap-2"><span class="material-symbols-outlined">add_circle</span> Positive Signals</h4>
+                <ul id="inv-positive" class="text-emerald-700 text-sm space-y-2 list-disc pl-4"><li>Loading...</li></ul>
+              </div>
+              <div class="bg-rose-50 rounded-2xl p-5 border border-rose-100">
+                <h4 class="font-bold text-rose-800 mb-3 flex items-center gap-2"><span class="material-symbols-outlined">do_not_disturb_on</span> Negative Signals</h4>
+                <ul id="inv-negative" class="text-rose-700 text-sm space-y-2 list-disc pl-4"><li>Loading...</li></ul>
+              </div>
+              <div class="bg-amber-50 rounded-2xl p-5 border border-amber-100">
+                <h4 class="font-bold text-amber-800 mb-3 flex items-center gap-2"><span class="material-symbols-outlined">warning</span> Risk Factors</h4>
+                <ul id="inv-risks" class="text-amber-700 text-sm space-y-2 list-disc pl-4"><li>Loading...</li></ul>
+              </div>
+            </div>
+
+            <div class="border-t border-slate-100 pt-6 flex flex-col md:flex-row justify-between items-center gap-4">
+              <div class="flex items-center gap-4">
+                <div class="bg-slate-100 px-4 py-2 rounded-xl">
+                  <span class="text-xs font-bold text-slate-500 uppercase tracking-wider block">AI Outlook</span>
+                  <span id="inv-outlook" class="font-black text-slate-800 text-lg">NEUTRAL</span>
+                </div>
+                <div class="bg-slate-100 px-4 py-2 rounded-xl">
+                  <span class="text-xs font-bold text-slate-500 uppercase tracking-wider block">Confidence</span>
+                  <span id="inv-outlook-conf" class="font-black text-slate-800 text-lg">--%</span>
+                </div>
+              </div>
+              <p class="text-xs text-slate-400 flex items-center gap-1">
+                <span class="material-symbols-outlined text-[14px]">info</span>
+                AI-generated market analysis for educational purposes. This is not financial advice.
+              </p>
+            </div>
+          </div>
+          </div>
+        </div>
+        </div>
+      </div>
     </main>
   </div>
 
   <script src="app.js"></script>
   <script src="ai.js"></script>
+  <script src="investments.js"></script>
+
+  <!-- Add Investment Modal -->
+  <div id="addInvestmentModal" class="fixed inset-0 z-[200] flex items-center justify-center" style="display:none;background:rgba(15,23,42,0.55);backdrop-filter:blur(6px);">
+    <div onclick="closeAddInvestmentModal()" style="position:absolute;inset:0;"></div>
+    <div style="position:relative;z-index:10;background:var(--surface);border:1px solid var(--border);border-radius:24px;box-shadow:0 30px 70px rgba(0,0,0,0.2);padding:40px 44px;width:min(92vw,500px);transform:scale(0.95);transition:transform .25s ease,opacity .25s ease;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:28px;padding-bottom:18px;border-bottom:1px solid var(--border);">
+        <h3 style="font-size:22px;font-weight:800;color:var(--text);font-family:'Manrope',sans-serif;">Add Investment</h3>
+        <button onclick="closeAddInvestmentModal()" style="background:var(--surface2);border:1px solid var(--border);border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--muted);transition:all .2s;">
+          <span class="material-symbols-outlined" style="font-size:18px;">close</span>
+        </button>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:16px;margin-bottom:24px;">
+        
+        <!-- Smart Stock Search -->
+        <div class="form-group" style="position:relative;">
+          <label>Search Stock</label>
+          <input id="add-inv-search" autocomplete="off" placeholder="Search company name or symbol..." oninput="handleStockSearch(this.value)" />
+          
+          <!-- Dropdown -->
+          <div id="add-inv-dropdown" class="hidden absolute top-full left-0 right-0 mt-1 bg-white rounded-xl shadow-xl border border-slate-100 max-h-60 overflow-y-auto z-50 flex-col">
+            <!-- Loading and results go here -->
+          </div>
+        </div>
+
+        <!-- Selected Stock Display -->
+        <div id="add-inv-selected" class="hidden bg-slate-50 border border-slate-200 rounded-xl p-4 flex justify-between items-center">
+          <div>
+            <p id="add-inv-sel-name" class="font-bold text-slate-900">Name</p>
+            <p id="add-inv-sel-sym" class="text-xs font-semibold text-accent-purple mt-0.5">SYMBOL • Exchange</p>
+          </div>
+          <button onclick="clearStockSelection()" class="text-slate-400 hover:text-rose-500 transition-colors flex items-center justify-center">
+            <span class="material-symbols-outlined" style="font-size:20px;">close</span>
+          </button>
+        </div>
+        
+        <!-- Hidden fields for backend payload -->
+        <input type="hidden" id="add-inv-symbol" />
+        <input type="hidden" id="add-inv-name" />
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+          <div class="form-group"><label>Quantity</label><input id="add-inv-qty" type="number" step="any" placeholder="0" /></div>
+          <div class="form-group"><label>Avg Buy Price (₹)</label><input id="add-inv-price" type="number" step="any" placeholder="0.00" /></div>
+        </div>
+        <div class="form-group"><label>Purchase Date</label><input id="add-inv-date" type="date" /></div>
+      </div>
+      
+      <p id="add-inv-error" class="text-rose-500 text-sm font-semibold mb-4 hidden"></p>
+
+      <div style="display:flex;justify-content:flex-end;">
+        <button class="btn btn-primary" onclick="saveInvestment()" style="white-space:nowrap;height:46px;width:100%;font-weight:bold;background:var(--accent-purple);border-color:var(--accent-purple);color:white;">+ Save Investment</button>
+      </div>
+    </div>
+  </div>
 
   <!-- Transaction Modal -->
   <div id="transactionModal" class="fixed inset-0 z-[200] flex items-center justify-center" style="display:none;background:rgba(15,23,42,0.55);backdrop-filter:blur(6px);">
@@ -823,7 +1101,14 @@
       <input type="hidden" id="goal-id" value="" />
       
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
-        <div class="form-group"><label>Goal Name</label><input id="goal-name" placeholder="e.g. MacBook Pro, Trip to Bali" /></div>
+        <div class="form-group" style="position:relative;">
+          <label>Goal Name</label>
+          <input id="goal-name" autocomplete="off" placeholder="e.g. MacBook Pro, Trip to Bali" />
+          
+          <!-- Smart Goal Suggestions Dropdown -->
+          <div id="goal-suggestions-dropdown" class="hidden absolute top-full left-0 right-0 mt-1 bg-white rounded-xl shadow-xl border border-slate-100 max-h-48 overflow-y-auto z-50 flex-col">
+          </div>
+        </div>
         <div class="form-group"><label>Target Amount (₹)</label><input id="goal-target" type="number" placeholder="0" /></div>
       </div>
       
